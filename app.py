@@ -32,7 +32,7 @@ except Exception as e:
     st.stop()
 claude = get_claude()
 
-month = st.sidebar.text_input("운영월 (YYYY-MM)", value=date.today().strftime("%Y-%m"))
+month = st.sidebar.text_input("운영월 (YYYY-MM)", value=date.today().strftime("%Y-%m"), key="op_month")
 
 tabs = st.tabs(["🏠 홈", "📅 일정관리", "👥 체험단관리", "🔍 QA검수",
                 "📋 심의관리", "🔀 심의본비교", "🤖 AI브리핑"])

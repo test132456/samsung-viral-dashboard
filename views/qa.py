@@ -25,16 +25,16 @@ def render_qa(sheets, claude=None):
     st.subheader("🔍 원고 QA 자동검수")
     col_in, col_opt = st.columns([3, 1])
     with col_opt:
-        use_ai = st.toggle("AI 2차검수", value=bool(claude))
-        content_id = st.text_input("content_id (선택)")
+        use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
+        content_id = st.text_input("content_id (선택)", key="qa_cid")
     with col_in:
-        up = st.file_uploader("원고 업로드 (.docx/.txt)", type=["docx", "txt"])
+        up = st.file_uploader("원고 업로드 (.docx/.txt)", type=["docx", "txt"], key="qa_uploader")
         text = ""
         if up:
             text = _read_docx(up) if up.name.endswith(".docx") else up.read().decode("utf-8", "ignore")
         text = st.text_area("원고 텍스트", value=text, height=260)
 
-    if st.button("검수 실행", type="primary", disabled=not text.strip()):
+    if st.button("검수 실행", type="primary", disabled=not text.strip(), key="qa_run"):
         guide = ""  # 심의가이드 텍스트는 ref 시트 note 합본 또는 secrets로 주입 가능
         judge = (lambda t: claude.judge_expressions(t, guide)) if (use_ai and claude) else None
         report = qa_engine.run_qa(text, _refs_from_sheets(sheets), ai_judge=judge)
@@ -61,7 +61,7 @@ def render_qa(sheets, claude=None):
         for f in report["ai_findings"]:
             st.warning(f"AI: {f.get('snippet','')} — {f.get('reason','')} → {f.get('suggestion','')}")
 
-        if st.button("결과 시트에 저장"):
+        if st.button("결과 시트에 저장", key="qa_save"):
             sheets.append(schema.SHEET_QA, {
                 "content_id": content_id, "qa_score": report["qa_score"],
                 "banned_count": report["banned_count"], "rider_error_count": report["rider_error_count"],

@@ -18,12 +18,12 @@ def render_ai_briefing(sheets, month: str):
 
     st.markdown("##### 기록 추가")
     with st.form("briefing_form", clear_on_submit=True):
-        d = st.date_input("날짜", value=date.today())
-        kw = st.text_input("검색어")
+        d = st.date_input("날짜", value=date.today(), key="brf_date")
+        kw = st.text_input("검색어", key="brf_kw")
         a1, a2 = st.columns(2)
-        ai_exp = a1.selectbox("AI브리핑 노출", ["Y", "N"])
-        sf_exp = a2.selectbox("삼성화재 노출", ["Y", "N"])
-        ctype = st.selectbox("노출 콘텐츠 유형", schema.CONTENT_TYPES)
+        ai_exp = a1.selectbox("AI브리핑 노출", ["Y", "N"], key="brf_ai")
+        sf_exp = a2.selectbox("삼성화재 노출", ["Y", "N"], key="brf_sf")
+        ctype = st.selectbox("노출 콘텐츠 유형", schema.CONTENT_TYPES, key="brf_type")
         if st.form_submit_button("기록 추가"):
             sheets.append(schema.SHEET_BRIEFING, {
                 "date": d.isoformat(), "keyword": kw, "ai_briefing_exposed": ai_exp,

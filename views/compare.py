@@ -7,16 +7,16 @@ from views.qa import _refs_from_sheets, _read_docx
 
 def render_compare(sheets):
     st.subheader("🔀 심의 완료본 vs 실제 발행본 비교")
-    content_id = st.text_input("content_id (선택)")
+    content_id = st.text_input("content_id (선택)", key="cmp_cid")
     col_l, col_r = st.columns(2)
     with col_l:
         up = st.file_uploader("심의 완료본 (.docx/.txt)", type=["docx", "txt"], key="appr")
         approved = _read_docx(up) if (up and up.name.endswith(".docx")) else (up.read().decode("utf-8", "ignore") if up else "")
         approved = st.text_area("심의 완료본 텍스트", value=approved, height=240)
     with col_r:
-        url = st.text_input("발행 URL")
+        url = st.text_input("발행 URL", key="cmp_url")
         published = st.session_state.get("pub_text", "")
-        if st.button("URL 자동수집"):
+        if st.button("URL 자동수집", key="cmp_fetch"):
             try:
                 published = fetcher.fetch_naver_text(url)
                 st.session_state["pub_text"] = published
@@ -25,7 +25,7 @@ def render_compare(sheets):
                 st.error(str(e))
         published = st.text_area("발행본 텍스트 (자동수집 실패 시 직접 붙여넣기)", value=published, height=240)
 
-    if st.button("비교 실행", type="primary", disabled=not (approved.strip() and published.strip())):
+    if st.button("비교 실행", type="primary", disabled=not (approved.strip() and published.strip()), key="cmp_run"):
         st.session_state["compare_report"] = compare_engine.compare(approved, published, _refs_from_sheets(sheets))
         st.session_state["compare_cid"] = content_id
 
@@ -44,7 +44,7 @@ def render_compare(sheets):
             st.error(f"삭제됨: {d}")
         for ad in rep["added_list"]:
             st.success(f"추가됨: {ad}")
-        if st.button("결과 시트에 저장"):
+        if st.button("결과 시트에 저장", key="cmp_save"):
             sheets.append(schema.SHEET_COMPARE, {
                 "content_id": st.session_state.get("compare_cid", ""), "match_rate": rep["match_rate"],
                 "changed": rep["changed"], "deleted": rep["deleted"], "added": rep["added"],
