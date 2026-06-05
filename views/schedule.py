@@ -80,6 +80,9 @@ def render_schedule(sheets, month: str):
     grid = calendar_view.month_grid(yy, mm, cal_rows)
     st.markdown(_calendar_html(grid), unsafe_allow_html=True)
     st.caption("🟦 공식   🟩 배포형   ⬜ 기타 · 워크플로 일정")
+    if not cal_rows:
+        st.info(f"📭 **{month}** 에 등록된 달력 일정이 없습니다. "
+                f"아래 ✏️ 편집기에서 직접 추가하거나, 사이드바에서 다른 달을 선택하세요.")
 
     with st.expander("✏️ 달력 일정 직접 입력 / 편집"):
         st.caption("행을 추가/수정하고 저장하면 위 달력에 즉시 반영됩니다. 날짜는 YYYY-MM-DD 형식.")
