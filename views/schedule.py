@@ -96,45 +96,35 @@ def render_schedule(sheets, month: str):
             st.success("저장 완료")
             st.rerun()
 
-    # --- 배포 일정 ---
+    # --- 배포 일정 (직접 편집) ---
     st.divider()
     st.markdown("#### 🚀 배포 일정")
     dist = sheets.read(schema.SHEET_DISTRIBUTION)
-    if dist.empty:
-        st.caption("배포 일정 데이터 없음")
-    else:
-        seen = []
-        for grp in dist["group"].tolist():
-            if str(grp).strip() and grp not in seen:
-                seen.append(grp)
-        for grp in seen:
-            sub = dist[dist["group"] == grp].drop(columns=["group"])
-            st.markdown(f"**{grp}** · {len(sub)}건")
-            st.dataframe(sub, use_container_width=True, hide_index=True,
-                         column_config={
-                             "blogger": st.column_config.TextColumn("블로거"),
-                             "publish_date": st.column_config.TextColumn("배포일"),
-                             "approval_no": st.column_config.TextColumn("심의필"),
-                             "landing_url": st.column_config.LinkColumn("랜딩URL"),
-                             "note": st.column_config.TextColumn("비고"),
-                             "publish_url": st.column_config.LinkColumn("발행URL"),
-                         })
 
-    with st.expander("✏️ 배포 일정 직접 입력 / 편집"):
-        st.caption("그룹명을 같게 입력하면 같은 표로 묶입니다. 배포일은 YYYY-MM-DD 형식.")
-        dist_all = sheets.read(schema.SHEET_DISTRIBUTION)
-        dist_edit = st.data_editor(
-            dist_all, num_rows="dynamic", use_container_width=True, key="dist_editor",
-            column_config={
-                "group": st.column_config.TextColumn("그룹"),
-                "blogger": st.column_config.TextColumn("블로거"),
-                "publish_date": st.column_config.TextColumn("배포일 (YYYY-MM-DD)"),
-                "approval_no": st.column_config.TextColumn("심의필"),
-                "landing_url": st.column_config.TextColumn("랜딩URL"),
-                "note": st.column_config.TextColumn("비고"),
-                "publish_url": st.column_config.TextColumn("발행URL"),
-            })
-        if st.button("배포 일정 저장", key="dist_save"):
-            sheets.overwrite(schema.SHEET_DISTRIBUTION, dist_edit)
-            st.success("저장 완료")
-            st.rerun()
+    # 그룹별 건수 요약
+    seen = []
+    for grp in dist["group"].tolist():
+        if str(grp).strip() and grp not in seen:
+            seen.append(grp)
+    if seen:
+        summary = "　·　".join(f"{grp} {int((dist['group'] == grp).sum())}건" for grp in seen)
+        st.caption(summary)
+
+    st.caption("표에서 셀을 더블클릭해 수정하거나 맨 아래 빈 행에 입력하세요. 행 삭제는 행 선택 후 휴지통. "
+               "같은 **그룹**명끼리 묶입니다. 배포일은 YYYY-MM-DD 형식. 수정 후 **저장**을 누르세요.")
+    dist_edit = st.data_editor(
+        dist, num_rows="dynamic", use_container_width=True, hide_index=True, key="dist_editor",
+        column_config={
+            "group": st.column_config.TextColumn(
+                "그룹", help="예: 배포형 (5월 작성) / 공식블로그 / 변경심의 — 같은 이름끼리 묶입니다"),
+            "blogger": st.column_config.TextColumn("블로거"),
+            "publish_date": st.column_config.TextColumn("배포일 (YYYY-MM-DD)"),
+            "approval_no": st.column_config.TextColumn("심의필"),
+            "landing_url": st.column_config.TextColumn("랜딩URL", width="medium"),
+            "note": st.column_config.TextColumn("비고"),
+            "publish_url": st.column_config.TextColumn("발행URL", width="medium"),
+        })
+    if st.button("배포 일정 저장", key="dist_save", type="primary"):
+        sheets.overwrite(schema.SHEET_DISTRIBUTION, dist_edit)
+        st.success("저장 완료")
+        st.rerun()
