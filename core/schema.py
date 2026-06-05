@@ -11,11 +11,13 @@ SHEET_REF_BANNED = "ref_banned"
 SHEET_REF_REQUIRED = "ref_required"
 SHEET_REF_RIDERS = "ref_riders"
 SHEET_REF_KEYWORDS = "ref_keywords"
+SHEET_CALENDAR = "calendar_events"
+SHEET_DISTRIBUTION = "distribution"
 
 ALL_SHEETS = [
     SHEET_SCHEDULE, SHEET_INFLUENCERS, SHEET_REVIEWS, SHEET_QA,
     SHEET_COMPARE, SHEET_BRIEFING, SHEET_REF_BANNED, SHEET_REF_REQUIRED,
-    SHEET_REF_RIDERS, SHEET_REF_KEYWORDS,
+    SHEET_REF_RIDERS, SHEET_REF_KEYWORDS, SHEET_CALENDAR, SHEET_DISTRIBUTION,
 ]
 
 # --- 컬럼 정의 (탭 생성 시 헤더로 사용) ---
@@ -36,6 +38,8 @@ COLS = {
     SHEET_REF_REQUIRED: ["phrase", "type", "note"],
     SHEET_REF_RIDERS: ["official_name", "common_mistakes"],
     SHEET_REF_KEYWORDS: ["keyword", "type"],
+    SHEET_CALENDAR: ["date", "task", "track"],
+    SHEET_DISTRIBUTION: ["group", "blogger", "publish_date", "approval_no", "landing_url", "note", "publish_url"],
 }
 
 # --- 상태값/분류 ---
