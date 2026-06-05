@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
-from core import schedule_logic, schema, calendar_view
+from core import schedule_logic, schema, calendar_view, schedule_gen
 
 _DOW = ["일", "월", "화", "수", "목", "금", "토"]
 _TRACK_COLOR = {"공식": "#1f74e0", "배포형": "#2bb673"}
@@ -87,7 +87,28 @@ def render_schedule(sheets, month: str):
     st.caption("🟦 공식   🟩 배포형   ⬜ 기타 · 워크플로 일정")
     if not cal_rows:
         st.info(f"📭 **{cal_month}** 에 등록된 달력 일정이 없습니다. "
-                f"아래 ✏️ 편집기에서 직접 추가하세요.")
+                f"아래 ✏️ 편집기에서 직접 추가하거나, 🪄 초안 자동 생성을 이용하세요.")
+
+    with st.expander("🪄 7~12월 초안 일정 자동 생성"):
+        st.caption("6월 운영 패턴(모집·작성·심의·배포)을 기준으로 7~12월 표준 일정을 자동으로 채웁니다. "
+                   "이미 일정이 있는 달은 건너뜁니다. 생성 후 달력/편집기에서 자유롭게 수정하세요.")
+        if st.button("7~12월 초안 생성", key="gen_drafts", type="primary"):
+            existing = sheets.read(schema.SHEET_CALENDAR).to_dict("records")
+            have = {str(e.get("date", ""))[:7] for e in existing}
+            targets = [f"2026-{m:02d}" for m in range(7, 13)]
+            added, skipped = 0, []
+            for ym in targets:
+                if ym in have:
+                    skipped.append(ym)
+                    continue
+                for e in schedule_gen.month_drafts(int(ym[:4]), int(ym[5:7])):
+                    sheets.append(schema.SHEET_CALENDAR, e)
+                    added += 1
+            msg = f"초안 {added}건 생성 완료"
+            if skipped:
+                msg += f" · 이미 일정 있어 건너뜀: {', '.join(skipped)}"
+            st.success(msg)
+            st.rerun()
 
     with st.expander("✏️ 달력 일정 직접 입력 / 편집"):
         st.caption("행을 추가/수정하고 저장하면 위 달력에 즉시 반영됩니다. 날짜는 YYYY-MM-DD 형식.")

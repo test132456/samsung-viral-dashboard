@@ -19,15 +19,20 @@ def get_demo_sheets():
     """샘플 시드로 시작하되, 같은 폴더에 '바이럴 일정.xlsx'가 있으면
     달력 일정을 엑셀 전체(전월 포함)로 교체해 모든 달을 채운다(로컬 미리보기용)."""
     seed = dict(SEED)
+    base_cal = list(SEED.get(schema.SHEET_CALENDAR, []))
     xlsx = os.path.join(os.path.dirname(os.path.abspath(__file__)), "바이럴 일정.xlsx")
     if os.path.exists(xlsx):
         try:
             from core import viral_parser
             events, _dist = viral_parser.parse(xlsx)
             if events:
-                seed[schema.SHEET_CALENDAR] = events
+                base_cal = events
         except Exception:
             pass
+    # 7~12월 초안 일정 자동 생성해 미리 채워둠 (데모)
+    from core import schedule_gen
+    seed[schema.SHEET_CALENDAR] = base_cal + schedule_gen.generate(
+        [f"2026-{m:02d}" for m in range(7, 13)])
     return MockSheets(seed)
 
 

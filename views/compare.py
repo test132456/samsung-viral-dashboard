@@ -2,6 +2,7 @@
 import streamlit as st
 from datetime import date
 from core import compare_engine, fetcher, schema
+from views import ui
 from views.qa import _refs_from_sheets, _read_docx
 
 
@@ -31,13 +32,25 @@ def render_compare(sheets):
 
     rep = st.session_state.get("compare_report")
     if rep:
-        c = st.columns(4)
-        c[0].metric("일치율", f"{rep['match_rate']}%")
-        c[1].metric("변경", rep["changed"]); c[2].metric("삭제", rep["deleted"]); c[3].metric("추가", rep["added"])
-        b = st.columns(3)
-        b[0].metric("고지문구", "정상" if rep["notice_ok"] else "이상")
-        b[1].metric("해시태그", "정상" if rep["hashtag_ok"] else "이상")
-        b[2].metric("특약명", "정상" if rep["rider_ok"] else "이상")
+        mr = rep["match_rate"]
+        mr_tone = "green" if mr >= 95 else ("amber" if mr >= 80 else "red")
+        st.markdown(ui.kpi_cards([
+            {"icon": "🎯", "tone": mr_tone, "label": "일치율", "value": f"{mr}%", "sub": "심의본 대비"},
+            {"icon": "✏️", "tone": "amber" if rep["changed"] else "green",
+             "label": "변경 문장", "value": f'{rep["changed"]}건', "sub": "수정됨"},
+            {"icon": "🗑️", "tone": "red" if rep["deleted"] else "green",
+             "label": "삭제 문장", "value": f'{rep["deleted"]}건', "sub": "발행본서 빠짐"},
+            {"icon": "➕", "tone": "blue" if rep["added"] else "green",
+             "label": "추가 문장", "value": f'{rep["added"]}건', "sub": "발행본에 추가"},
+        ]), unsafe_allow_html=True)
+        st.markdown(ui.kpi_cards([
+            {"icon": "📢", "tone": "green" if rep["notice_ok"] else "red",
+             "label": "고지문구", "value": "정상" if rep["notice_ok"] else "이상", "sub": "필수문구 유지"},
+            {"icon": "#️⃣", "tone": "green" if rep["hashtag_ok"] else "red",
+             "label": "해시태그", "value": "정상" if rep["hashtag_ok"] else "이상", "sub": "필수 해시태그"},
+            {"icon": "📑", "tone": "green" if rep["rider_ok"] else "red",
+             "label": "특약명", "value": "정상" if rep["rider_ok"] else "이상", "sub": "특약명 유지"},
+        ]), unsafe_allow_html=True)
         for ch in rep["changed_list"]:
             st.warning(f"변경: {ch['from']} → {ch['to']}")
         for d in rep["deleted_list"]:

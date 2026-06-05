@@ -3,6 +3,7 @@ import streamlit as st
 import docx, io
 from datetime import date
 from core import qa_engine, schema
+from views import ui
 
 
 def _refs_from_sheets(sheets) -> dict:
@@ -43,12 +44,19 @@ def render_qa(sheets, claude=None):
 
     report = st.session_state.get("qa_report")
     if report:
-        c = st.columns(5)
-        c[0].metric("QA 점수", report["qa_score"])
-        c[1].metric("금지표현", report["banned_count"])
-        c[2].metric("특약명 오류", report["rider_error_count"])
-        c[3].metric("필수문구 누락", "있음" if report["missing_phrase"] else "없음")
-        c[4].metric("보험료 기재", "발견" if report["price_found"] else "없음")
+        score = report["qa_score"]
+        score_tone = "green" if score >= 85 else ("amber" if score >= 70 else "red")
+        st.markdown(ui.kpi_cards([
+            {"icon": "🎯", "tone": score_tone, "label": "QA 점수", "value": score, "sub": "100점 만점"},
+            {"icon": "🚫", "tone": "red" if report["banned_count"] else "green",
+             "label": "금지표현", "value": f'{report["banned_count"]}건', "sub": "사전 매칭"},
+            {"icon": "📑", "tone": "red" if report["rider_error_count"] else "green",
+             "label": "특약명 오류", "value": f'{report["rider_error_count"]}건', "sub": "약관 대조"},
+            {"icon": "📋", "tone": "red" if report["missing_phrase"] else "green",
+             "label": "필수문구 누락", "value": "있음" if report["missing_phrase"] else "없음", "sub": "고지·유료광고"},
+            {"icon": "💰", "tone": "amber" if report["price_found"] else "green",
+             "label": "보험료 기재", "value": "발견" if report["price_found"] else "없음", "sub": "금액 탐지"},
+        ]), unsafe_allow_html=True)
 
         if report["banned"]:
             st.error("금지표현: " + ", ".join(f"'{b['term']}'" for b in report["banned"]))
