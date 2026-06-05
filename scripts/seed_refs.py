@@ -1,7 +1,8 @@
 """ref_* 시트 초기 채움. 사용:
    python scripts/seed_refs.py            # 기본 금지표현/키워드만 시드
    특약명은 약관 파싱이 필요하므로, 약관 텍스트를 --riders-file 로 전달(줄당 '정식명|오기재1,오기재2')."""
-import sys, argparse
+import sys, os, argparse
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import streamlit as st           # secrets 재사용
 from core.sheets import Sheets
 from core import schema
