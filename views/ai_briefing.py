@@ -1,22 +1,24 @@
-"""AI브리핑 모니터링 탭 (4순위)."""
+"""AI브리핑 모니터링 탭 (4순위 · 클린 코퍼레이트 톤)."""
 import streamlit as st
 import pandas as pd
 from datetime import date
 from core import kpi, schema
+from views import ui
 
 
 def render_ai_briefing(sheets, month: str):
     st.subheader("🤖 AI 브리핑 모니터링")
     df = sheets.read(schema.SHEET_BRIEFING)
     roll = kpi.briefing_rollup(df.to_dict("records"), month)
-    c = st.columns(3)
-    c[0].metric(f"{month} 노출 횟수", roll["exposed_count"])
-    c[1].metric("노출 키워드 수", roll["keyword_count"])
-    c[2].metric("콘텐츠 유형 수", len(roll["by_type"]))
+    st.markdown(ui.kpi_cards([
+        {"icon": "📡", "tone": "red", "label": f"{month} 노출 횟수", "value": roll["exposed_count"], "sub": "AI브리핑 노출"},
+        {"icon": "🔑", "tone": "blue", "label": "노출 키워드 수", "value": roll["keyword_count"], "sub": "고유 키워드"},
+        {"icon": "🗂️", "tone": "violet", "label": "콘텐츠 유형 수", "value": len(roll["by_type"]), "sub": "정보/비교/후기"},
+    ]), unsafe_allow_html=True)
     if roll["by_type"]:
         st.bar_chart(pd.Series(roll["by_type"]))
 
-    st.markdown("##### 기록 추가")
+    st.markdown("##### ✏️ 기록 추가")
     with st.form("briefing_form", clear_on_submit=True):
         d = st.date_input("날짜", value=date.today(), key="brf_date")
         kw = st.text_input("검색어", key="brf_kw")

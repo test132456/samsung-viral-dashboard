@@ -4,7 +4,7 @@ from datetime import date
 from core.sheets import Sheets
 from core.claude_client import ClaudeClient
 from core import schema
-from views import home, schedule, influencers, qa, reviews, compare, ai_briefing
+from views import home, schedule, influencers, qa, reviews, compare, ai_briefing, ui
 
 st.set_page_config(page_title="삼성화재 바이럴 운영 대시보드", layout="wide")
 
@@ -23,6 +23,7 @@ def get_claude():
     return ClaudeClient(key) if key else None
 
 
+st.markdown(ui.GLOBAL_CSS, unsafe_allow_html=True)
 st.title("삼성화재 해외여행보험 바이럴 운영 대시보드")
 st.caption("바이럴 운영 PM + QA 관리 시스템")
 

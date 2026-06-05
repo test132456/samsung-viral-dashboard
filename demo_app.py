@@ -9,7 +9,7 @@ import streamlit as st
 from core.mock_sheets import MockSheets
 from core import schema
 from demo_data import SEED
-from views import home, schedule, influencers, qa, reviews, compare, ai_briefing
+from views import home, schedule, influencers, qa, reviews, compare, ai_briefing, ui
 
 st.set_page_config(page_title="[데모] 삼성화재 바이럴 운영 대시보드", layout="wide")
 
@@ -34,6 +34,7 @@ def get_demo_sheets():
 sheets = get_demo_sheets()
 claude = None  # 데모에서는 AI 2차검수 비활성 (규칙검수는 동작)
 
+st.markdown(ui.GLOBAL_CSS, unsafe_allow_html=True)
 st.title("삼성화재 해외여행보험 바이럴 운영 대시보드")
 st.caption("바이럴 운영 PM + QA 관리 시스템  ·  🔶 데모 모드 (샘플 데이터 · 구글시트/AI 미연결)")
 st.info("샘플 데이터로 동작하는 미리보기입니다. 저장·기록은 임시 메모리에만 반영되고 새로고침하면 초기화됩니다.", icon="🔶")
