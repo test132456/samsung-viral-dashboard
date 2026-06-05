@@ -19,3 +19,10 @@ def test_compare_missing_notice_flagged(refs):
     published = "그냥 후기입니다."   # 고지문구/해시태그 누락
     rep = compare_engine.compare(approved, published, refs)
     assert rep["notice_ok"] is False
+
+def test_compare_changed_count_matches_list(refs):
+    approved = "문장 하나.\n문장 둘.\n문장 셋."
+    published = "문장 하나.\n완전히 다른 내용 한 줄."
+    rep = compare_engine.compare(approved, published, refs)
+    assert rep["changed"] == len(rep["changed_list"])
+    assert rep["changed"] >= 1

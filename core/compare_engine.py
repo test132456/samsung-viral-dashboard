@@ -18,8 +18,8 @@ def compare(approved: str, published: str, refs: dict) -> dict:
     changed_list, deleted_list, added_list = [], [], []
     for tag, i1, i2, j1, j2 in sm.get_opcodes():
         if tag == "replace":
-            changed += max(i2 - i1, j2 - j1)
             changed_list.append({"from": " ".join(a[i1:i2]), "to": " ".join(b[j1:j2])})
+            changed += 1
         elif tag == "delete":
             deleted += (i2 - i1)
             deleted_list += a[i1:i2]
