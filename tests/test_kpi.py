@@ -27,3 +27,11 @@ def test_briefing_rollup_by_month():
     out = kpi.briefing_rollup(rows, "2026-06")
     assert out["exposed_count"] == 2
     assert out["keyword_count"] == 2
+
+def test_briefing_rollup_ignores_blank_fields():
+    rows = [{"date": "2026-06-01", "keyword": "해외여행보험", "ai_briefing_exposed": "Y", "content_type": "정보형"},
+            {"date": "2026-06-02", "keyword": "", "ai_briefing_exposed": "Y", "content_type": ""}]
+    out = kpi.briefing_rollup(rows, "2026-06")
+    assert out["exposed_count"] == 2
+    assert out["keyword_count"] == 1               # 빈 keyword 제외
+    assert "" not in out["by_type"] and None not in out["by_type"]

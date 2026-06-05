@@ -7,6 +7,8 @@ def _in_month(d: str, month: str) -> bool:
 
 
 def aggregate_kpis(schedule, reviews, qa, briefing, month: str) -> dict:
+    """month는 briefing_exposed 집계에만 적용된다. 나머지 KPI(진행중·심의·발행)는
+    월 필터 없이 현재 상태 기준 전체를 집계한다."""
     in_progress = sum(1 for r in schedule if r.get("status") == "진행중")
     published = sum(1 for r in schedule if r.get("status") == "완료")
     review_waiting = sum(1 for r in reviews if r.get("status") == "심의접수")
@@ -37,7 +39,8 @@ def influencer_summary(rows) -> dict:
 def briefing_rollup(rows, month: str) -> dict:
     m = [r for r in rows if _in_month(r.get("date", ""), month)]
     exposed = [r for r in m if str(r.get("ai_briefing_exposed", "")).upper() == "Y"]
+    keywords = {r.get("keyword") for r in exposed if r.get("keyword")}
+    types = {r.get("content_type") for r in exposed if r.get("content_type")}
     return {"exposed_count": len(exposed),
-            "keyword_count": len({r.get("keyword") for r in exposed}),
-            "by_type": {t: sum(1 for r in exposed if r.get("content_type") == t)
-                        for t in {r.get("content_type") for r in exposed}}}
+            "keyword_count": len(keywords),
+            "by_type": {t: sum(1 for r in exposed if r.get("content_type") == t) for t in types}}
