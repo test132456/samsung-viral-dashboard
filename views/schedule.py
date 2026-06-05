@@ -70,19 +70,24 @@ def render_schedule(sheets, month: str):
 
     # --- 월 달력 ---
     st.divider()
-    st.markdown(f"#### 📆 {month} 달력")
+    st.markdown("#### 📆 달력")
+    _idx = schema.MONTHS.index(month) if month in schema.MONTHS else schema.MONTHS.index(schema.DEFAULT_MONTH)
+    c_sel, _c_rest = st.columns([1, 3])
+    cal_month = c_sel.selectbox("달력 월 선택", schema.MONTHS, index=_idx,
+                                key="cal_month", label_visibility="collapsed",
+                                help="다른 달의 달력을 보려면 선택하세요")
     try:
-        yy, mm = int(month[:4]), int(month[5:7])
+        yy, mm = int(cal_month[:4]), int(cal_month[5:7])
     except (ValueError, IndexError):
         yy, mm = date.today().year, date.today().month
     cal_rows = sheets.read(schema.SHEET_CALENDAR).to_dict("records")
-    cal_rows = [e for e in cal_rows if str(e.get("date", ""))[:7] == month]
+    cal_rows = [e for e in cal_rows if str(e.get("date", ""))[:7] == cal_month]
     grid = calendar_view.month_grid(yy, mm, cal_rows)
     st.markdown(_calendar_html(grid), unsafe_allow_html=True)
     st.caption("🟦 공식   🟩 배포형   ⬜ 기타 · 워크플로 일정")
     if not cal_rows:
-        st.info(f"📭 **{month}** 에 등록된 달력 일정이 없습니다. "
-                f"아래 ✏️ 편집기에서 직접 추가하거나, 사이드바에서 다른 달을 선택하세요.")
+        st.info(f"📭 **{cal_month}** 에 등록된 달력 일정이 없습니다. "
+                f"아래 ✏️ 편집기에서 직접 추가하세요.")
 
     with st.expander("✏️ 달력 일정 직접 입력 / 편집"):
         st.caption("행을 추가/수정하고 저장하면 위 달력에 즉시 반영됩니다. 날짜는 YYYY-MM-DD 형식.")
