@@ -22,6 +22,19 @@ def test_check_price_detects_won():
 def test_check_price_none():
     assert qa_rules.check_price("보험료 안내는 별도 문의.") == []
 
+def test_check_price_no_garbled_partial():
+    # 콤마 없는 4자리: 깨진 부분매칭("026원","000원")이 나오면 안 됨
+    a1 = {h["amount"] for h in qa_rules.check_price("2026원")}
+    assert "026원" not in a1
+    assert a1 == {"2026원"}          # 전체를 하나로 인식
+    a2 = {h["amount"] for h in qa_rules.check_price("1000원")}
+    assert "000원" not in a2
+    assert a2 == {"1000원"}
+
+def test_check_price_still_detects_comma_amounts():
+    a = {h["amount"] for h in qa_rules.check_price("보험료 7,700원, 최대 12,000원.")}
+    assert a == {"7,700원", "12,000원"}
+
 def test_check_riders_flags_wrong_name(refs):
     text = "항공기 지연 특약으로 보상받으세요."
     hits = qa_rules.check_riders(text, refs["riders"])

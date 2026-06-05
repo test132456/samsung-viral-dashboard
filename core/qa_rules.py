@@ -32,7 +32,7 @@ def check_riders(text: str, riders: list[dict]) -> list[dict]:
     return hits
 
 
-_PRICE_RE = re.compile(r"\d{1,3}(?:,\d{3})*\s*원")
+_PRICE_RE = re.compile(r"(?<!\d)(?:\d{1,3}(?:,\d{3})+|\d+)\s*원")
 
 def check_price(text: str) -> list[dict]:
     """보험료성 금액(숫자+원) 탐지 → 경고용."""
