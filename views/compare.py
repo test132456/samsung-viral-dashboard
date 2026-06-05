@@ -26,7 +26,11 @@ def render_compare(sheets):
         published = st.text_area("발행본 텍스트 (자동수집 실패 시 직접 붙여넣기)", value=published, height=240)
 
     if st.button("비교 실행", type="primary", disabled=not (approved.strip() and published.strip())):
-        rep = compare_engine.compare(approved, published, _refs_from_sheets(sheets))
+        st.session_state["compare_report"] = compare_engine.compare(approved, published, _refs_from_sheets(sheets))
+        st.session_state["compare_cid"] = content_id
+
+    rep = st.session_state.get("compare_report")
+    if rep:
         c = st.columns(4)
         c[0].metric("일치율", f"{rep['match_rate']}%")
         c[1].metric("변경", rep["changed"]); c[2].metric("삭제", rep["deleted"]); c[3].metric("추가", rep["added"])
@@ -42,7 +46,7 @@ def render_compare(sheets):
             st.success(f"추가됨: {ad}")
         if st.button("결과 시트에 저장"):
             sheets.append(schema.SHEET_COMPARE, {
-                "content_id": content_id, "match_rate": rep["match_rate"],
+                "content_id": st.session_state.get("compare_cid", ""), "match_rate": rep["match_rate"],
                 "changed": rep["changed"], "deleted": rep["deleted"], "added": rep["added"],
                 "notice_ok": "Y" if rep["notice_ok"] else "N",
                 "rider_ok": "Y" if rep["rider_ok"] else "N",
