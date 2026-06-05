@@ -38,3 +38,18 @@ def check_price(text: str) -> list[dict]:
     """보험료성 금액(숫자+원) 탐지 → 경고용."""
     return [{"amount": m.group().replace(" ", ""), "position": m.start()}
             for m in _PRICE_RE.finditer(text)]
+
+
+def check_required(text: str, required: list[dict]) -> list[dict]:
+    """필수문구(유료광고·고지) 누락 검출. 없는 것만 반환."""
+    return [{"phrase": r["phrase"], "type": r.get("type", "")}
+            for r in required if r["phrase"] not in text]
+
+
+def check_keywords(text: str, keywords: list[dict]) -> dict:
+    """필수 키워드 포함 여부 + 필수 해시태그 존재 여부."""
+    kw = [k["keyword"] for k in keywords if k.get("type") == "키워드"]
+    tags = [k["keyword"] for k in keywords if k.get("type") == "해시태그"]
+    missing = [k for k in kw if k not in text]
+    has_tag = any(("#" + t) in text for t in tags)
+    return {"missing_keywords": missing, "has_required_hashtag": has_tag}
