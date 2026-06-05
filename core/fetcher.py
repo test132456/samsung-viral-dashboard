@@ -21,11 +21,17 @@ def extract_text(html: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
+def _normalize_naver_url(url: str) -> str:
+    """blog.naver.com/<id>/<no> → m.blog.naver.com/<id>/<no>. 그 외는 원본."""
+    m = re.search(r"(?:^|//)(?:m\.)?blog\.naver\.com/([^/?]+)/(\d+)", url)
+    if m:
+        return f"https://m.blog.naver.com/{m.group(1)}/{m.group(2)}"
+    return url
+
+
 def fetch_naver_text(url: str, timeout: int = 10) -> str:
     """URL → 본문. 네이버는 iframe 구조라 mobile(m.blog) URL로 정규화 후 시도."""
-    m = re.search(r"blog\.naver\.com/([^/?]+)/(\d+)", url)
-    if m:
-        url = f"https://m.blog.naver.com/{m.group(1)}/{m.group(2)}"
+    url = _normalize_naver_url(url)
     try:
         resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
         resp.raise_for_status()
