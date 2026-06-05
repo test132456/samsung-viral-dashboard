@@ -21,3 +21,14 @@ def test_check_price_detects_won():
 
 def test_check_price_none():
     assert qa_rules.check_price("보험료 안내는 별도 문의.") == []
+
+def test_check_riders_flags_wrong_name(refs):
+    text = "항공기 지연 특약으로 보상받으세요."
+    hits = qa_rules.check_riders(text, refs["riders"])
+    assert len(hits) == 1
+    assert hits[0]["found"] == "항공기 지연 특약"
+    assert hits[0]["official_name"] == "항공기 지연 결항 보상(지수형)(국내 출국) 특약"
+
+def test_check_riders_ok_when_official_used(refs):
+    text = "항공기 지연 결항 보상(지수형)(국내 출국) 특약 안내."
+    assert qa_rules.check_riders(text, refs["riders"]) == []
