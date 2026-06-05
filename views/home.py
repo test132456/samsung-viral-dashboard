@@ -5,7 +5,8 @@ from core import kpi, schedule_logic, schema
 
 
 def render_home(sheets, month: str):
-    schedule = sheets.read(schema.SHEET_SCHEDULE).to_dict("records")
+    schedule = schedule_logic.annotate(
+        sheets.read(schema.SHEET_SCHEDULE).to_dict("records"), date.today())
     reviews = sheets.read(schema.SHEET_REVIEWS).to_dict("records")
     qa = sheets.read(schema.SHEET_QA).to_dict("records")
     briefing = sheets.read(schema.SHEET_BRIEFING).to_dict("records")
