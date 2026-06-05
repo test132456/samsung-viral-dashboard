@@ -11,3 +11,13 @@ def test_check_banned_finds_terms(refs):
 def test_check_banned_clean(refs):
     hits = qa_rules.check_banned("안전한 여행 되세요.", refs["banned"])
     assert hits == []
+
+def test_check_price_detects_won():
+    text = "보험료 7,700원부터 시작합니다. 최대 12,000원."
+    hits = qa_rules.check_price(text)
+    amounts = {h["amount"] for h in hits}
+    assert "7,700원" in amounts
+    assert "12,000원" in amounts
+
+def test_check_price_none():
+    assert qa_rules.check_price("보험료 안내는 별도 문의.") == []
