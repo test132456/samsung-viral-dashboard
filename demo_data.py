@@ -64,6 +64,10 @@ SEED = {
         {"date": "2026-06-07", "keyword": "항공기지연보험", "ai_briefing_exposed": "Y",
          "samsung_exposed": "Y", "content_type": "후기형"},
     ],
+    schema.SHEET_QA: [
+        {"content_id": "C-004", "qa_score": "88", "banned_count": "1", "rider_error_count": "0",
+         "missing_phrase": "N", "price_found": "N", "checked_at": "2026-06-04"},
+    ],
     schema.SHEET_REF_BANNED: [
         {"term": t, "note": "demo"} for t in
         ["무조건", "전부 보장", "훨씬", "걱정 없이", "모두", "빈번하게", "자주", "는 물론", "뿐만 아니라", "100%", "완벽", "최고"]
