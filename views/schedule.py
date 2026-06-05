@@ -81,6 +81,21 @@ def render_schedule(sheets, month: str):
     st.markdown(_calendar_html(grid), unsafe_allow_html=True)
     st.caption("🟦 공식   🟩 배포형   ⬜ 기타 · 워크플로 일정")
 
+    with st.expander("✏️ 달력 일정 직접 입력 / 편집"):
+        st.caption("행을 추가/수정하고 저장하면 위 달력에 즉시 반영됩니다. 날짜는 YYYY-MM-DD 형식.")
+        cal_df = sheets.read(schema.SHEET_CALENDAR)
+        cal_edit = st.data_editor(
+            cal_df, num_rows="dynamic", use_container_width=True, key="cal_editor",
+            column_config={
+                "date": st.column_config.TextColumn("날짜 (YYYY-MM-DD)", width="small"),
+                "task": st.column_config.TextColumn("일정 내용", width="large"),
+                "track": st.column_config.SelectboxColumn("구분", options=schema.TRACKS),
+            })
+        if st.button("달력 일정 저장", key="cal_save"):
+            sheets.overwrite(schema.SHEET_CALENDAR, cal_edit)
+            st.success("저장 완료")
+            st.rerun()
+
     # --- 배포 일정 ---
     st.divider()
     st.markdown("#### 🚀 배포 일정")
@@ -104,3 +119,22 @@ def render_schedule(sheets, month: str):
                              "note": st.column_config.TextColumn("비고"),
                              "publish_url": st.column_config.LinkColumn("발행URL"),
                          })
+
+    with st.expander("✏️ 배포 일정 직접 입력 / 편집"):
+        st.caption("그룹명을 같게 입력하면 같은 표로 묶입니다. 배포일은 YYYY-MM-DD 형식.")
+        dist_all = sheets.read(schema.SHEET_DISTRIBUTION)
+        dist_edit = st.data_editor(
+            dist_all, num_rows="dynamic", use_container_width=True, key="dist_editor",
+            column_config={
+                "group": st.column_config.TextColumn("그룹"),
+                "blogger": st.column_config.TextColumn("블로거"),
+                "publish_date": st.column_config.TextColumn("배포일 (YYYY-MM-DD)"),
+                "approval_no": st.column_config.TextColumn("심의필"),
+                "landing_url": st.column_config.TextColumn("랜딩URL"),
+                "note": st.column_config.TextColumn("비고"),
+                "publish_url": st.column_config.TextColumn("발행URL"),
+            })
+        if st.button("배포 일정 저장", key="dist_save"):
+            sheets.overwrite(schema.SHEET_DISTRIBUTION, dist_edit)
+            st.success("저장 완료")
+            st.rerun()

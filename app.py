@@ -3,6 +3,7 @@ import streamlit as st
 from datetime import date
 from core.sheets import Sheets
 from core.claude_client import ClaudeClient
+from core import schema
 from views import home, schedule, influencers, qa, reviews, compare, ai_briefing
 
 st.set_page_config(page_title="삼성화재 바이럴 운영 대시보드", layout="wide")
@@ -32,7 +33,9 @@ except Exception as e:
     st.stop()
 claude = get_claude()
 
-month = st.sidebar.text_input("운영월 (YYYY-MM)", value=date.today().strftime("%Y-%m"), key="op_month")
+_cur = date.today().strftime("%Y-%m")
+_default = schema.MONTHS.index(_cur) if _cur in schema.MONTHS else schema.MONTHS.index(schema.DEFAULT_MONTH)
+month = st.sidebar.selectbox("운영월", schema.MONTHS, index=_default, key="op_month")
 
 tabs = st.tabs(["🏠 홈", "📅 일정관리", "👥 체험단관리", "🔍 QA검수",
                 "📋 심의관리", "🔀 심의본비교", "🤖 AI브리핑"])

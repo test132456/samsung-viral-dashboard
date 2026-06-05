@@ -6,6 +6,7 @@ production 진입점은 app.py (구글시트 + Claude 연결).
 """
 import streamlit as st
 from core.mock_sheets import MockSheets
+from core import schema
 from demo_data import SEED
 from views import home, schedule, influencers, qa, reviews, compare, ai_briefing
 
@@ -24,8 +25,9 @@ st.title("삼성화재 해외여행보험 바이럴 운영 대시보드")
 st.caption("바이럴 운영 PM + QA 관리 시스템  ·  🔶 데모 모드 (샘플 데이터 · 구글시트/AI 미연결)")
 st.info("샘플 데이터로 동작하는 미리보기입니다. 저장·기록은 임시 메모리에만 반영되고 새로고침하면 초기화됩니다.", icon="🔶")
 
-month = st.sidebar.text_input("운영월 (YYYY-MM)", value="2026-06", key="op_month")
-st.sidebar.caption("데모: 기준일 2026-06-05 가정")
+month = st.sidebar.selectbox("운영월", schema.MONTHS,
+                             index=schema.MONTHS.index(schema.DEFAULT_MONTH), key="op_month")
+st.sidebar.caption("데모: 기준일 2026-06-05 가정 · 6월에 샘플 데이터 있음")
 
 tabs = st.tabs(["🏠 홈", "📅 일정관리", "👥 체험단관리", "🔍 QA검수",
                 "📋 심의관리", "🔀 심의본비교", "🤖 AI브리핑"])

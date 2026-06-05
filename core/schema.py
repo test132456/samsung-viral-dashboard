@@ -47,3 +47,8 @@ SCHEDULE_STATUSES = ["예정", "진행중", "완료", "지연"]
 REVIEW_STATUSES = ["작성중", "심의접수", "수정요청", "심의완료", "발행완료"]
 CHANNELS = ["공식블로그", "배포형"]
 CONTENT_TYPES = ["정보형", "비교형", "후기형"]
+TRACKS = ["공식", "배포형", ""]
+
+# 운영월 드롭다운 범위: 2026-01 ~ 2027-12
+MONTHS = [f"{y}-{m:02d}" for y in (2026, 2027) for m in range(1, 13)]
+DEFAULT_MONTH = "2026-06"
