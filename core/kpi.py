@@ -6,6 +6,13 @@ def _in_month(d: str, month: str) -> bool:
     return bool(d) and str(d).strip()[:7] == month
 
 
+def _num(v) -> float:
+    try:
+        return float(str(v).replace(",", "").strip() or 0)
+    except (ValueError, TypeError):
+        return 0.0
+
+
 def aggregate_kpis(schedule, reviews, qa, briefing, month: str) -> dict:
     """month는 briefing_exposed 집계에만 적용된다. 나머지 KPI(진행중·심의·발행)는
     월 필터 없이 현재 상태 기준 전체를 집계한다."""
@@ -44,3 +51,34 @@ def briefing_rollup(rows, month: str) -> dict:
     return {"exposed_count": len(exposed),
             "keyword_count": len(keywords),
             "by_type": {t: sum(1 for r in exposed if r.get("content_type") == t) for t in types}}
+
+
+def briefing_daily(rows, month: str) -> dict:
+    """월 내 AI브리핑 노출(Y)의 일별 건수. {date: count}."""
+    daily = {}
+    for r in rows:
+        if str(r.get("ai_briefing_exposed", "")).upper() == "Y" and _in_month(r.get("date", ""), month):
+            d = str(r.get("date", "")).strip()[:10]
+            daily[d] = daily.get(d, 0) + 1
+    return dict(sorted(daily.items()))
+
+
+def citation_summary(rows, month: str) -> dict:
+    """AI 툴별 인용률(= 인용수/질의수) 집계. month 필터.
+    반환: {by_tool:{tool:rate%}, overall_rate, total_queries, total_cited}."""
+    tools: dict[str, dict] = {}
+    for r in rows:
+        if not _in_month(r.get("date", ""), month):
+            continue
+        tool = str(r.get("tool", "")).strip()
+        if not tool:
+            continue
+        t = tools.setdefault(tool, {"queries": 0.0, "cited": 0.0})
+        t["queries"] += _num(r.get("queries"))
+        t["cited"] += _num(r.get("cited"))
+    by_tool = {tool: (round(v["cited"] / v["queries"] * 100, 1) if v["queries"] else 0.0)
+               for tool, v in tools.items()}
+    tq = sum(v["queries"] for v in tools.values())
+    tc = sum(v["cited"] for v in tools.values())
+    return {"by_tool": by_tool, "overall_rate": round(tc / tq * 100, 1) if tq else 0.0,
+            "total_queries": int(tq), "total_cited": int(tc)}
