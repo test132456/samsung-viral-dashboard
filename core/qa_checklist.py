@@ -11,6 +11,20 @@ TITLE_MAX = 25            # 제목 글자수 상한
 HEAD_RATIO = 0.20         # 본문 '첫 부분' 비율
 TAIL_RATIO = 0.20         # 본문 '하단' 비율
 
+# 체크리스트 항목명 (evaluate/blank 공통)
+NAMES = [
+    "제목 키워드 시작",
+    f"제목 {TITLE_MAX}자 이내",
+    "유료광고 문안(상단)",
+    "필수 고지문구",
+    "하단 가입 링크",
+]
+
+
+def blank() -> list[dict]:
+    """검수 전 미리보기용 — 모든 항목 pending(–)."""
+    return [{"name": n, "status": "pending", "detail": "검수 전"} for n in NAMES]
+
 
 def evaluate(title: str, body: str, refs: dict) -> list[dict]:
     title = (title or "").strip()

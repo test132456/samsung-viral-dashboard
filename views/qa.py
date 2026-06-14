@@ -43,6 +43,17 @@ def render_qa(sheets, claude=None):
         st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
         st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs)
 
+    # 구조 체크리스트 — 검수 전에도 미리보기 표시
+    st.markdown("##### 📋 구조 체크리스트")
+    cl = st.session_state.get("qa_checklist")
+    st.markdown(ui.checklist_table(cl or qa_checklist.blank()), unsafe_allow_html=True)
+    if cl:
+        cs = qa_checklist.summary(cl)
+        st.caption(f"✓ 충족 {cs['ok']} · △ 부분 {cs['warn']} · ✕ 미충족 {cs['fail']} · 통과율 {cs['pass_rate']}%  "
+                   f"· ④ 필수 고지문구는 ref_required(필수문구) 시트 기준입니다.")
+    else:
+        st.caption("제목·원고 입력 후 '검수 실행'을 누르면 위 5개 항목이 ✓ / △ / ✕ 로 채워집니다.")
+
     report = st.session_state.get("qa_report")
     if report:
         score = report["qa_score"]
@@ -69,14 +80,6 @@ def render_qa(sheets, claude=None):
             st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
         for f in report["ai_findings"]:
             st.warning(f"AI: {f.get('snippet','')} — {f.get('reason','')} → {f.get('suggestion','')}")
-
-        cl = st.session_state.get("qa_checklist", [])
-        if cl:
-            st.markdown("##### 📋 구조 체크리스트")
-            st.markdown(ui.checklist_table(cl), unsafe_allow_html=True)
-            cs = qa_checklist.summary(cl)
-            st.caption(f"✓ 충족 {cs['ok']} · △ 부분 {cs['warn']} · ✕ 미충족 {cs['fail']} · 통과율 {cs['pass_rate']}%  "
-                       f"· ④ 필수 고지문구는 ref_required(필수문구) 시트 기준입니다.")
 
         if st.button("결과 시트에 저장", key="qa_save"):
             sheets.append(schema.SHEET_QA, {
