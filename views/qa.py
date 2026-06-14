@@ -2,7 +2,7 @@
 import streamlit as st
 import docx, io
 from datetime import date
-from core import qa_engine, schema
+from core import qa_engine, schema, qa_checklist
 from views import ui
 
 
@@ -28,6 +28,7 @@ def render_qa(sheets, claude=None):
     with col_opt:
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         content_id = st.text_input("content_id (선택)", key="qa_cid")
+        title = st.text_input("제목", key="qa_title", placeholder="원고 제목 (체크리스트용)")
     with col_in:
         up = st.file_uploader("원고 업로드 (.docx/.txt)", type=["docx", "txt"], key="qa_uploader")
         text = ""
@@ -36,11 +37,11 @@ def render_qa(sheets, claude=None):
         text = st.text_area("원고 텍스트", value=text, height=260)
 
     if st.button("검수 실행", type="primary", disabled=not text.strip(), key="qa_run"):
+        refs = _refs_from_sheets(sheets)
         guide = ""  # 심의가이드 텍스트는 ref 시트 note 합본 또는 secrets로 주입 가능
         judge = (lambda t: claude.judge_expressions(t, guide)) if (use_ai and claude) else None
-        report = qa_engine.run_qa(text, _refs_from_sheets(sheets), ai_judge=judge)
-        st.session_state["qa_report"] = report
-        st.session_state["qa_text"] = text
+        st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
+        st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs)
 
     report = st.session_state.get("qa_report")
     if report:
@@ -68,6 +69,14 @@ def render_qa(sheets, claude=None):
             st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
         for f in report["ai_findings"]:
             st.warning(f"AI: {f.get('snippet','')} — {f.get('reason','')} → {f.get('suggestion','')}")
+
+        cl = st.session_state.get("qa_checklist", [])
+        if cl:
+            st.markdown("##### 📋 구조 체크리스트")
+            st.markdown(ui.checklist_table(cl), unsafe_allow_html=True)
+            cs = qa_checklist.summary(cl)
+            st.caption(f"✓ 충족 {cs['ok']} · △ 부분 {cs['warn']} · ✕ 미충족 {cs['fail']} · 통과율 {cs['pass_rate']}%  "
+                       f"· ④ 필수 고지문구는 ref_required(필수문구) 시트 기준입니다.")
 
         if st.button("결과 시트에 저장", key="qa_save"):
             sheets.append(schema.SHEET_QA, {

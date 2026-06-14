@@ -35,6 +35,13 @@ GLOBAL_CSS = """
 .vh-ring i{width:70px;height:70px;border-radius:50%;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-style:normal;}
 .vh-ring b{font-size:24px;font-weight:800;color:#16213d;}.vh-ring span{font-size:9px;color:#9aa4b4;}
 .vh-qrow{display:flex;justify-content:space-between;font-size:12px;padding:6px 0;color:#5b6678;}.vh-qrow b{color:#16213d;}
+.vh-chk{width:100%;border-collapse:collapse;table-layout:fixed;margin:6px 0;}
+.vh-chk th{background:#2c3e74;color:#fff;font-size:11.5px;font-weight:700;padding:9px 6px;border:2px solid #fff;text-align:center;line-height:1.3;}
+.vh-chk td{padding:12px 6px;border:2px solid #fff;text-align:center;vertical-align:middle;}
+.vh-chk .sym{font-size:20px;font-weight:800;line-height:1;}
+.vh-chk .det{font-size:10px;margin-top:5px;line-height:1.25;}
+.chk-ok{background:#d8f3e3;} .chk-warn{background:#fff3cd;} .chk-fail{background:#fbdada;}
+.chk-ok .sym,.chk-ok .det{color:#1d7a4c;} .chk-warn .sym,.chk-warn .det{color:#b9760a;} .chk-fail .sym,.chk-fail .det{color:#c23636;}
 </style>
 """
 
@@ -71,3 +78,15 @@ def pill(text: str, kind: str = "wait") -> str:
 
 def section(title: str) -> str:
     return f'<div class="vh-wrap"><div class="vh-sec">{title}</div></div>'
+
+
+_CHK_SYM = {"ok": "✓", "warn": "△", "fail": "✕"}
+
+
+def checklist_table(items: list[dict]) -> str:
+    """items: [{name, status: ok|warn|fail, detail}] → 색상 체크리스트 표 HTML."""
+    head = "".join(f"<th>{i['name']}</th>" for i in items)
+    cells = "".join(
+        f'<td class="chk-{i["status"]}"><div class="sym">{_CHK_SYM.get(i["status"], "-")}</div>'
+        f'<div class="det">{i.get("detail", "")}</div></td>' for i in items)
+    return f'<div class="vh-wrap"><table class="vh-chk"><tr>{head}</tr><tr>{cells}</tr></table></div>'
