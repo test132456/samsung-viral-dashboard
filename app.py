@@ -34,7 +34,7 @@ except Exception as e:
     st.stop()
 claude = get_claude()
 
-PAGES = ["🏠 홈", "📅 일정관리", "🔍 QA검수", "📋 심의관리", "🔀 심의본비교", "🤖 AI 노출현황"]
+PAGES = ["🏠 홈", "🔍 QA검수", "🔀 심의본비교", "🤖 AI 노출현황"]
 page = st.sidebar.radio("메뉴", PAGES, label_visibility="collapsed", key="nav")
 st.sidebar.divider()
 _cur = date.today().strftime("%Y-%m")
@@ -43,12 +43,8 @@ month = st.sidebar.selectbox("운영월", schema.MONTHS, index=_default, key="op
 
 if page == "🏠 홈":
     home.render_home(sheets, month)
-elif page == "📅 일정관리":
-    schedule.render_schedule(sheets, month)
 elif page == "🔍 QA검수":
     qa.render_qa(sheets, claude)
-elif page == "📋 심의관리":
-    reviews.render_reviews(sheets)
 elif page == "🔀 심의본비교":
     compare.render_compare(sheets)
 elif page == "🤖 AI 노출현황":

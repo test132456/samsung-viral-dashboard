@@ -44,7 +44,7 @@ st.title("삼성화재 해외여행보험 바이럴 운영 대시보드")
 st.caption("바이럴 운영 PM + QA 관리 시스템  ·  🔶 데모 모드 (샘플 데이터 · 구글시트/AI 미연결)")
 st.info("샘플 데이터로 동작하는 미리보기입니다. 저장·기록은 임시 메모리에만 반영되고 새로고침하면 초기화됩니다.", icon="🔶")
 
-PAGES = ["🏠 홈", "📅 일정관리", "🔍 QA검수", "📋 심의관리", "🔀 심의본비교", "🤖 AI 노출현황"]
+PAGES = ["🏠 홈", "🔍 QA검수", "🔀 심의본비교", "🤖 AI 노출현황"]
 page = st.sidebar.radio("메뉴", PAGES, label_visibility="collapsed", key="nav")
 st.sidebar.divider()
 month = st.sidebar.selectbox("운영월", schema.MONTHS,
@@ -53,12 +53,8 @@ st.sidebar.caption("데모: 기준일 2026-06-05 가정 · 6월에 샘플 데이
 
 if page == "🏠 홈":
     home.render_home(sheets, month)
-elif page == "📅 일정관리":
-    schedule.render_schedule(sheets, month)
 elif page == "🔍 QA검수":
     qa.render_qa(sheets, claude)
-elif page == "📋 심의관리":
-    reviews.render_reviews(sheets)
 elif page == "🔀 심의본비교":
     compare.render_compare(sheets)
 elif page == "🤖 AI 노출현황":
