@@ -82,3 +82,23 @@ def citation_summary(rows, month: str) -> dict:
     tc = sum(v["cited"] for v in tools.values())
     return {"by_tool": by_tool, "overall_rate": round(tc / tq * 100, 1) if tq else 0.0,
             "total_queries": int(tq), "total_cited": int(tc)}
+
+
+def qa_summary(rows, month: str) -> dict:
+    """QA 검수 요약 — 최근 점수(전체 마지막) + 당월 검수 건수."""
+    latest_score = None
+    if rows:
+        try:
+            latest_score = int(float(rows[-1].get("qa_score", 0)))
+        except (ValueError, TypeError):
+            latest_score = None
+    count = sum(1 for r in rows if _in_month(r.get("checked_at", ""), month))
+    return {"latest_score": latest_score, "count": count}
+
+
+def compare_summary(rows, month: str) -> dict:
+    """심의본 비교 요약 — 당월 평균 일치율 + 건수."""
+    m = [r for r in rows if _in_month(r.get("checked_at", ""), month)]
+    rates = [_num(r.get("match_rate")) for r in m if str(r.get("match_rate", "")).strip() != ""]
+    avg = round(sum(rates) / len(rates), 1) if rates else None
+    return {"avg_match": avg, "count": len(m)}

@@ -68,6 +68,12 @@ SEED = {
         {"content_id": "C-004", "qa_score": "88", "banned_count": "1", "rider_error_count": "0",
          "missing_phrase": "N", "price_found": "N", "checked_at": "2026-06-04"},
     ],
+    schema.SHEET_COMPARE: [
+        {"content_id": "C-003", "match_rate": "98.0", "changed": "2", "deleted": "0", "added": "1",
+         "notice_ok": "Y", "rider_ok": "Y", "checked_at": "2026-06-03"},
+        {"content_id": "C-004", "match_rate": "94.5", "changed": "3", "deleted": "1", "added": "0",
+         "notice_ok": "Y", "rider_ok": "N", "checked_at": "2026-06-04"},
+    ],
     schema.SHEET_REF_BANNED: [
         {"term": t, "note": "demo"} for t in
         ["무조건", "전부 보장", "훨씬", "걱정 없이", "모두", "빈번하게", "자주", "는 물론", "뿐만 아니라", "100%", "완벽", "최고"]
