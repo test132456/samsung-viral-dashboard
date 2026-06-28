@@ -35,6 +35,10 @@ except Exception as e:
 claude = get_claude()
 
 PAGES = ["🏠 홈", "🔍 QA검수", "🔀 심의본비교", "🤖 AI 노출현황"]
+st.sidebar.markdown(
+    '<div class="vh-brand"><div class="vh-logo">SF</div>'
+    '<div><div class="vh-bt">삼성화재 바이럴</div><div class="vh-bs">운영 PM + QA</div></div></div>'
+    '<div class="vh-mlabel">MENU</div>', unsafe_allow_html=True)
 page = st.sidebar.radio("메뉴", PAGES, label_visibility="collapsed", key="nav")
 st.sidebar.divider()
 _cur = date.today().strftime("%Y-%m")

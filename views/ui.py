@@ -43,6 +43,25 @@ GLOBAL_CSS = """
 .chk-ok{background:#d8f3e3;} .chk-warn{background:#fff3cd;} .chk-fail{background:#fbdada;} .chk-pending{background:#f1f3f7;}
 .chk-ok .sym,.chk-ok .det{color:#1d7a4c;} .chk-warn .sym,.chk-warn .det{color:#b9760a;} .chk-fail .sym,.chk-fail .det{color:#c23636;}
 .chk-pending .sym,.chk-pending .det{color:#9aa4b4;}
+/* ===== 사이드바 모던 내비 (A안) ===== */
+section[data-testid="stSidebar"] div[role="radiogroup"]{gap:4px;}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label{
+  display:flex;align-items:center;width:100%;padding:10px 12px;border-radius:10px;
+  margin:0;cursor:pointer;position:relative;transition:background .15s;}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label:hover{background:#f4f7fc;}
+section[data-testid="stSidebar"] div[role="radiogroup"] input{position:absolute;opacity:0;width:0;height:0;}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label > div:first-child:not(:has(p)){display:none !important;}
+section[data-testid="stSidebar"] div[role="radiogroup"] label p{font-size:13.5px !important;font-weight:600;color:#5b6678;margin:0;}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked){background:#e7f0ff;}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked) p{color:#1f5fd0;font-weight:700 !important;}
+section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checked)::before{
+  content:"";position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:#2563eb;}
+.vh-brand{display:flex;align-items:center;gap:10px;padding:2px 2px 14px;}
+.vh-logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0c4da2,#2f7bea);
+  color:#fff;font-weight:800;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.vh-bt{font-size:12.5px;font-weight:800;line-height:1.2;color:#16213d;}
+.vh-bs{font-size:9.5px;color:#9aa4b4;}
+.vh-mlabel{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#aab3c2;padding:2px 4px 4px;}
 </style>
 """
 
