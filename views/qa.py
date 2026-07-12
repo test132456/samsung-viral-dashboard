@@ -46,15 +46,27 @@ def _load_upload(up):
     return "", manuscript_parser.all_text(data), ""
 
 
-def _terms_text(up) -> str:
-    """약관 파일(pdf/docx/txt) → 텍스트."""
-    data = up.getvalue()
-    n = up.name.lower()
+@st.cache_data(show_spinner=False)
+def _terms_text(data: bytes, name: str) -> str:
+    """약관 파일(pdf/docx/txt) → 텍스트. bytes 기준 캐시."""
+    n = (name or "").lower()
     if n.endswith(".pdf"):
         return manuscript_parser.read_pdf(data)
     if n.endswith(".docx"):
         return manuscript_parser.all_text(data)
     return data.decode("utf-8", "ignore")
+
+
+@st.cache_data(show_spinner=False)
+def _guide_parsed(data: bytes) -> dict:
+    """가이드 PPT 파싱(무거움) → 캐시."""
+    return guide.parse_guide(guide.extract_text(data))
+
+
+@st.cache_data(show_spinner=False)
+def _doc_pages(data: bytes):
+    """워드 페이지 매핑(무거움) → 캐시."""
+    return manuscript_parser.paragraph_pages(data)
 
 
 def render_qa(sheets, claude=None):
@@ -106,28 +118,34 @@ def render_qa(sheets, claude=None):
     if not report:
         return
 
-    # 가이드 실시간 반영 (업로드된 가이드 PPT 기준)
-    g = guide.parse_guide(guide.extract_text(guide_up.getvalue())) if guide_up is not None else None
-    gc = guide.check(text, g) if g else None
-    # 특약명 기준 = 가이드 '메인 담보명' (미인식 시 정식 기본값). 약관 PDF는 특약명 소스로 쓰지 않음
-    guide_riders = g.get("riders", []) if g else []
-    ref_riders = guide_riders or guide.DEFAULT_RIDERS
-    rider_src = "가이드" if guide_riders else "가이드 기본"
-    rv = terms.verify_usage(text, ref_riders)
-    # (선택) 약관 PDF 업로드 시 정식 특약명이 약관에서도 확인되는지 교차확인
-    terms_confirm = None
-    if terms_up is not None:
-        rawn = terms._norm(_terms_text(terms_up))
-        terms_confirm = sum(1 for r in ref_riders if terms._norm(r) in rawn)
-    rs = report.get("required_status", [])
+    # ── 결과 데이터 계산 (파일 파싱 등 무거운 작업은 캐시 + 중앙 오버레이로 감쌈) ──
+    _ov2 = st.empty()
+    _ov2.markdown(ui.loading_overlay("🍪 원고 살펴보는 중… 가이드·약관 대조"), unsafe_allow_html=True)
+    try:
+        g = _guide_parsed(guide_up.getvalue()) if guide_up is not None else None
+        gc = guide.check(text, g) if g else None
+        # 특약명 기준 = 가이드 '메인 담보명' (미인식 시 정식 기본값). 약관 PDF는 특약명 소스로 쓰지 않음
+        guide_riders = g.get("riders", []) if g else []
+        ref_riders = guide_riders or guide.DEFAULT_RIDERS
+        rider_src = "가이드" if guide_riders else "가이드 기본"
+        rv = terms.verify_usage(text, ref_riders)
+        # (선택) 약관 PDF 업로드 시 정식 특약명이 약관에서도 확인되는지 교차확인
+        terms_confirm = None
+        if terms_up is not None:
+            rawn = terms._norm(_terms_text(terms_up.getvalue(), terms_up.name))
+            terms_confirm = sum(1 for r in ref_riders if terms._norm(r) in rawn)
+        rs = report.get("required_status", [])
+        # 원고 쪽수(추정) — 잘못된 부분 위치 표시용 (워드 업로드 시)
+        pages = (_doc_pages(up.getvalue())
+                 if (up is not None and up.name.lower().endswith(".docx")) else None)
 
-    # 원고 쪽수(추정) — 잘못된 부분 위치 표시용 (워드 업로드 시)
-    pages = (manuscript_parser.paragraph_pages(up.getvalue())
-             if (up is not None and up.name.lower().endswith(".docx")) else None)
+        def pg(s):
+            p = manuscript_parser.find_page(pages, s) if pages else None
+            return f" · 원고 {p}쪽" if p else ""
 
-    def pg(s):
-        p = manuscript_parser.find_page(pages, s) if pages else None
-        return f" · 원고 {p}쪽" if p else ""
+        req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv, page_of=pg)
+    finally:
+        _ov2.empty()
 
     def _req(*keys):
         for it in rs:
@@ -182,7 +200,6 @@ def render_qa(sheets, claude=None):
         st.write("\n".join(f"- {r}" for r in ref_riders))
 
     # --- 가이드 요청·참고 사항 점검 (항목별 ✓/✕ + 원고 근거) ---
-    req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv, page_of=pg)
     rq = req_check.summary(req_items)
     st.markdown("##### 📋 가이드 요청사항 점검 (원고 근거 표시)")
     _page_note = " · 잘못된 부분은 원고 쪽수(추정) 표시" if pages else ""

@@ -6,3 +6,7 @@ __pycache__/
 *.hwp
 *.hwpx
 *.pdf
+*.xlsx
+*.xls
+*.docx
+*.pptx
