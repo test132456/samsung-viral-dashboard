@@ -38,27 +38,21 @@ def _citation_panel_html(cite: dict) -> str:
 
 def render_home(sheets, month: str):
     qa = sheets.read(schema.SHEET_QA).to_dict("records")
-    compare = sheets.read(schema.SHEET_COMPARE).to_dict("records")
     citations = sheets.read(schema.SHEET_CITATIONS).to_dict("records")
     briefing = sheets.read(schema.SHEET_BRIEFING).to_dict("records")
 
     qas = kpi.qa_summary(qa, month)
-    cmps = kpi.compare_summary(compare, month)
     cite = kpi.citation_summary(citations, month)
     brief = kpi.briefing_rollup(briefing, month)
 
     score = qas["latest_score"]
     score_tone = "gray" if score is None else ("green" if score >= 85 else ("amber" if score >= 70 else "red"))
-    avg = cmps["avg_match"]
-    avg_tone = "gray" if avg is None else ("green" if avg >= 95 else ("amber" if avg >= 80 else "red"))
 
     cards_html = ui.kpi_cards([
         {"icon": "🎯", "tone": score_tone, "label": "최근 QA 점수",
          "value": score if score is not None else "—", "sub": "마지막 검수"},
         {"icon": "🔍", "tone": "blue", "label": "이번달 QA 검수",
          "value": f'{qas["count"]}건', "sub": month},
-        {"icon": "🔀", "tone": avg_tone, "label": "심의본 평균 일치율",
-         "value": f"{avg}%" if avg is not None else "—", "sub": f'당월 {cmps["count"]}건'},
         {"icon": "📊", "tone": "violet", "label": "AI 인용률",
          "value": f'{cite["overall_rate"]}%', "sub": f'{cite["total_cited"]}/{cite["total_queries"]} 질의'},
         {"icon": "📡", "tone": "red", "label": "AI브리핑 노출",

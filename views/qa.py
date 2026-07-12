@@ -126,12 +126,3 @@ def render_qa(sheets, claude=None):
             st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
         for f in report["ai_findings"]:
             st.warning(f"AI: {f.get('snippet','')} — {f.get('reason','')} → {f.get('suggestion','')}")
-
-        if st.button("결과 시트에 저장", key="qa_save"):
-            sheets.append(schema.SHEET_QA, {
-                "content_id": content_id, "qa_score": report["qa_score"],
-                "banned_count": report["banned_count"], "rider_error_count": report["rider_error_count"],
-                "missing_phrase": "Y" if report["missing_phrase"] else "N",
-                "price_found": "Y" if report["price_found"] else "N",
-                "checked_at": date.today().isoformat()})
-            st.success("저장 완료")
