@@ -57,21 +57,6 @@ def _terms_text(up) -> str:
     return data.decode("utf-8", "ignore")
 
 
-def _resolve_riders(guide_riders: list[str], pdf_riders: list[str]) -> tuple[list[str], str]:
-    """특약명 기준: 가이드 우선. 가이드명이 약관(PDF)의 더 긴 정식명에 포함되면 그 정식명으로 보완."""
-    if guide_riders:
-        pn = {terms._norm(p): p for p in pdf_riders}
-        resolved = []
-        for r in guide_riders:
-            rn = terms._norm(r)
-            better = next((p for k, p in pn.items() if rn in k and len(k) > len(rn)), None)
-            resolved.append(better or r)
-        return resolved, "가이드"
-    if pdf_riders:
-        return pdf_riders, "약관"
-    return [], ""
-
-
 def render_qa(sheets, claude=None):
     st.subheader("📝 심의전 원고 검수")
     st.caption("발행 전 초안 원고를 심의 넣기 전에 점검 — 금지·과장 문구, 약관 특약명 대조, 구조 체크리스트")
@@ -86,7 +71,7 @@ def render_qa(sheets, claude=None):
         is_official = post_type == "공식블로그"
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
-        terms_up = st.file_uploader("약관 파일 (pdf/docx/txt)", type=["pdf", "docx", "txt"], key="qa_terms")
+        terms_up = st.file_uploader("약관 파일 (선택 · 특약명 교차확인용)", type=["pdf", "docx", "txt"], key="qa_terms")
         guide_up = st.file_uploader("작성 가이드 (pptx)", type=["pptx"], key="qa_guide")
     with col_in:
         text = st.text_area("원고 텍스트", value=text_default, height=260)
@@ -116,12 +101,19 @@ def render_qa(sheets, claude=None):
     if not report:
         return
 
-    # 가이드/약관 실시간 반영 (업로드된 파일 기준)
+    # 가이드 실시간 반영 (업로드된 가이드 PPT 기준)
     g = guide.parse_guide(guide.extract_text(guide_up.getvalue())) if guide_up is not None else None
     gc = guide.check(text, g) if g else None
-    pdf_riders = terms.extract_riders(_terms_text(terms_up)) if terms_up is not None else []
-    ref_riders, rider_src = _resolve_riders(g.get("riders", []) if g else [], pdf_riders)
-    rv = terms.verify_usage(text, ref_riders) if ref_riders else None
+    # 특약명 기준 = 가이드 '메인 담보명' (미인식 시 정식 기본값). 약관 PDF는 특약명 소스로 쓰지 않음
+    guide_riders = g.get("riders", []) if g else []
+    ref_riders = guide_riders or guide.DEFAULT_RIDERS
+    rider_src = "가이드" if guide_riders else "가이드 기본"
+    rv = terms.verify_usage(text, ref_riders)
+    # (선택) 약관 PDF 업로드 시 정식 특약명이 약관에서도 확인되는지 교차확인
+    terms_confirm = None
+    if terms_up is not None:
+        rawn = terms._norm(_terms_text(terms_up))
+        terms_confirm = sum(1 for r in ref_riders if terms._norm(r) in rawn)
     rs = report.get("required_status", [])
 
     def _req(*keys):
@@ -141,9 +133,8 @@ def render_qa(sheets, claude=None):
          {"icon": "🚫", "tone": "gray", "label": "표현불가 문구", "value": "–", "sub": "가이드 미업로드"}),
         {"icon": "⛔", "tone": "red" if report["banned_count"] else "green", "label": "금지표현(사전)",
          "value": f'{report["banned_count"]}건', "sub": "기본 사전"},
-        ({"icon": "📑", "tone": "red" if rv["mismatch_count"] else "green", "label": "특약명",
-          "value": (f'{rv["mismatch_count"]}건 오기' if rv["mismatch_count"] else "정상"), "sub": f"{rider_src} 기준"}
-         if rv else {"icon": "📑", "tone": "gray", "label": "특약명", "value": "–", "sub": "가이드/약관 미업로드"}),
+        {"icon": "📑", "tone": "red" if rv["mismatch_count"] else "green", "label": "특약명",
+         "value": (f'{rv["mismatch_count"]}건 오기' if rv["mismatch_count"] else "정상"), "sub": f"{rider_src} 담보명"},
         ({"icon": "📢", "tone": "green" if gojib["present"] else "red", "label": "고지문구",
           "value": "포함" if gojib["present"] else "누락", "sub": "법정 고지"} if gojib else
          {"icon": "📢", "tone": "gray", "label": "고지문구", "value": "–", "sub": "기준 없음"}),
@@ -169,12 +160,13 @@ def render_qa(sheets, claude=None):
     if report["banned"]:
         st.error("기본 사전 금지표현: " + ", ".join(f"'{b['term']}'" for b in report["banned"]))
 
-    # --- 특약명 상세 ---
-    if rv is not None:
-        st.markdown(f"###### 📑 특약명 대조 ({rider_src} 기준 · 정확 ✓ / 오기 의심 ✕)")
-        st.markdown(ui.rider_detail(rv, len(ref_riders)), unsafe_allow_html=True)
-        with st.expander(f"{rider_src}에서 인식한 특약명 {len(ref_riders)}개 보기"):
-            st.write("\n".join(f"- {r}" for r in ref_riders) if ref_riders else "인식된 특약명이 없습니다.")
+    # --- 특약명 상세 (가이드 정식 담보명 기준) ---
+    st.markdown(f"###### 📑 특약명 대조 ({rider_src} 담보명 기준 · 정확 ✓ / 오기 의심 ✕)")
+    st.markdown(ui.rider_detail(rv, len(ref_riders)), unsafe_allow_html=True)
+    if terms_confirm is not None:
+        st.caption(f"📎 약관 교차확인: 정식 특약명 {len(ref_riders)}개 중 {terms_confirm}개가 업로드한 약관에서도 확인됨")
+    with st.expander(f"{rider_src} 정식 특약명 {len(ref_riders)}개 보기"):
+        st.write("\n".join(f"- {r}" for r in ref_riders))
 
     # --- 가이드 요청·참고 사항 점검 (항목별 ✓/✕ + 원고 근거) ---
     req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv)

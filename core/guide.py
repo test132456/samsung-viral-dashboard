@@ -29,6 +29,18 @@ def extract_text(pptx_bytes: bytes) -> str:
 
 
 _RIDER_SECTION_RE = re.compile(r"\[[^\]]*담보명[^\]]*\]")
+# 담보명임을 판별하는 핵심 토큰 (법조문 조각 '이 특약/제1조(특약' 등 걸러내기)
+_RIDER_TOKENS = ("항공기", "수하물", "휴대품", "식중독", "여권", "질병", "상해",
+                 "실손", "배상", "치료", "지연", "결항", "분실", "손해", "재발급", "보상금")
+# 가이드 '메인 담보명' 정식 특약명 (가이드 PPT 미인식 시 기본값)
+DEFAULT_RIDERS = [
+    "항공기 지연 결항 보상(지수형)(국내 출국) 특약",
+    "항공기 지연 결항 보상(지수형)(국내 출국 제외) 특약",
+    "수하물 지연(6시간 이상)·손실 추가비용 특약",
+    "여행중 휴대품 손해(분실제외) 특약",
+    "여행중 식중독 보상금(2일이상 입원)특약",
+    "여행중 여권분실 재발급비용 특약",
+]
 
 
 def _extract_riders(text: str) -> list[str]:
@@ -52,6 +64,8 @@ def _extract_riders(text: str) -> list[str]:
         if not (4 <= len(name) <= 60) or name in seen or name in ("특약", "메인 특약"):
             continue
         if any(w in name for w in _NOISE):  # 안내문/헤더 문구 제거
+            continue
+        if not any(t in name for t in _RIDER_TOKENS):  # 담보 키워드 없는 조각(이 특약 등) 제거
             continue
         seen.add(name)
         out.append(name)

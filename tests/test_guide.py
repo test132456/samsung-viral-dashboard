@@ -57,3 +57,23 @@ def test_extract_riders_from_dambo_section():
 def test_extract_riders_none_without_section():
     from core import guide
     assert guide.parse_guide("담보명 헤더 없는 일반 텍스트 특약 어쩌구")["riders"] == []
+
+
+def test_rider_tokens_filter_out_legal_fragments():
+    from core import guide
+    # 담보명 섹션에 법조문 조각이 섞여도 담보 키워드 없는 건 제외
+    text = ("[메인 담보명]\n특약명\n"
+            "항공기 지연 결항 보상(지수형)(국내 출국) 특약\n"
+            "이 특약\n① 이 특약\n제1조(특약\n된 경우에는 이 특약\n"
+            "여행중 휴대품 손해(분실제외) 특약\n")
+    riders = guide.parse_guide(text)["riders"]
+    assert "항공기 지연 결항 보상(지수형)(국내 출국) 특약" in riders
+    assert "여행중 휴대품 손해(분실제외) 특약" in riders
+    assert "이 특약" not in riders
+    assert not any(r in ("① 이 특약", "제1조(특약", "된 경우에는 이 특약") for r in riders)
+
+
+def test_default_riders_constant():
+    from core import guide
+    assert len(guide.DEFAULT_RIDERS) == 6
+    assert "여행중 여권분실 재발급비용 특약" in guide.DEFAULT_RIDERS
