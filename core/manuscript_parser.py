@@ -85,6 +85,12 @@ def all_text(file_bytes: bytes) -> str:
     return "\n".join(out)
 
 
+def count_images(file_bytes: bytes) -> int:
+    """워드 문서에 삽입된 이미지 수(인라인+플로팅) — a:blip 요소 기준."""
+    doc = Document(io.BytesIO(file_bytes))
+    return sum(1 for el in doc.element.iter() if el.tag.endswith("}blip"))
+
+
 def read_pdf(file_bytes: bytes) -> str:
     """PDF 전체 텍스트 추출(pypdf). 스캔본(이미지 PDF)은 텍스트가 거의 안 나올 수 있음."""
     from pypdf import PdfReader

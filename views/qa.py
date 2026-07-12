@@ -2,7 +2,7 @@
 import streamlit as st
 import docx, io
 from datetime import date
-from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guide
+from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guide, req_check
 from views import ui
 
 
@@ -176,14 +176,21 @@ def render_qa(sheets, claude=None):
         with st.expander(f"{rider_src}에서 인식한 특약명 {len(ref_riders)}개 보기"):
             st.write("\n".join(f"- {r}" for r in ref_riders) if ref_riders else "인식된 특약명이 없습니다.")
 
-    # --- 필수문구(고지·유료광고) 상세 ---
-    if rs:
-        st.markdown("###### 📋 필수문구 상세 (있는 것 ✓ / 빠진 것 ✕)")
-        st.markdown(ui.required_detail(rs), unsafe_allow_html=True)
+    # --- 가이드 요청·참고 사항 점검 (항목별 ✓/✕ + 원고 근거) ---
+    image_count = (manuscript_parser.count_images(up.getvalue())
+                   if (up is not None and up.name.lower().endswith(".docx")) else None)
+    req_items = req_check.evaluate(title, text, image_count=image_count, is_official=is_official)
+    rq = req_check.summary(req_items)
+    st.markdown("##### 📋 가이드 요청사항 점검 (원고 근거 표시)")
+    st.caption(f"✓ 충족 {rq['ok']} · △ 확인 {rq['warn']} · ✕ 미충족 {rq['fail']} · 통과율 {rq['pass_rate']}%  "
+               f"— 각 항목이 원고에 어떻게 반영됐는지 근거 문장을 함께 보여줍니다.")
+    for grp in ["요청·참고 사항", "필수 고지문구"]:
+        gi = [it for it in req_items if it["group"] == grp]
+        if gi:
+            st.markdown(f"**{grp}**")
+            st.markdown(ui.evidence_checklist(gi), unsafe_allow_html=True)
 
-    # --- 해시태그 / 키워드 / AI ---
-    if gc and gc["tags_missing"]:
-        st.warning("누락된 필수 해시태그: " + " ".join(gc["tags_missing"]))
+    # --- 키워드 / AI ---
     if report["missing_keywords"]:
         st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
     for f in report["ai_findings"]:

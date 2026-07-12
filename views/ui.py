@@ -203,6 +203,26 @@ def flow_checklist(items: list[dict]) -> str:
     return f'<div class="vh-wrap">{"".join(rows)}</div>'
 
 
+def evidence_checklist(items: list[dict]) -> str:
+    """항목별 ✓/✕ + 원고 근거(evidence) 발췌를 함께 렌더 — 사용자 직접 확인용."""
+    rows = []
+    for it in items:
+        fg, bg, sym = _FLOW_C.get(it.get("status", "pending"), _FLOW_C["pending"])
+        ev = it.get("evidence", "")
+        ev_html = (f'<div style="margin-top:6px;padding:6px 10px;background:#f7f9fc;border:1px solid #e6ebf3;'
+                   f'border-radius:7px;font-size:11.5px;color:#40506b;line-height:1.5">원고: “{ev}”</div>'
+                   ) if ev else ""
+        rows.append(
+            f'<div style="padding:9px 13px;margin:6px 0;background:{bg};border-left:4px solid {fg};border-radius:9px">'
+            f'<div style="display:flex;align-items:center;gap:10px">'
+            f'<div style="width:20px;height:20px;border-radius:50%;background:{fg};color:#fff;font-weight:800;'
+            f'font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">{sym}</div>'
+            f'<div style="font-size:12.5px;font-weight:700;color:#16213d;flex:1;min-width:0">{it["name"]}</div>'
+            f'<div style="font-size:11px;color:#6b7688;text-align:right">{it.get("detail", "")}</div></div>'
+            f'{ev_html}</div>')
+    return f'<div class="vh-wrap">{"".join(rows)}</div>'
+
+
 def checklist_table(items: list[dict]) -> str:
     """items: [{name, status: ok|warn|fail, detail}] → 색상 체크리스트 표 HTML."""
     head = "".join(f"<th>{i['name']}</th>" for i in items)
