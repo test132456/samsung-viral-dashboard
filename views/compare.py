@@ -41,16 +41,25 @@ def render_compare(sheets):
         url = st.text_input("발행 URL", key="cmp_url")
         published = st.session_state.get("pub_text", "")
         if st.button("URL 자동수집", key="cmp_fetch"):
+            _ov = st.empty()
+            _ov.markdown(ui.loading_overlay("🍪 네이버 발행글 가져오는 중…"), unsafe_allow_html=True)
             try:
                 published = fetcher.fetch_naver_text(url)
                 st.session_state["pub_text"] = published
                 st.success("수집 성공")
             except fetcher.FetchError as e:
                 st.error(str(e))
+            finally:
+                _ov.empty()
         published = st.text_area("발행본 텍스트 (자동수집 실패 시 직접 붙여넣기)", value=published, height=240)
 
     if st.button("비교 실행", type="primary", disabled=not (approved.strip() and published.strip()), key="cmp_run"):
-        st.session_state["compare_report"] = compare_engine.compare(approved, published, _refs_from_sheets(sheets))
+        _ov = st.empty()
+        _ov.markdown(ui.loading_overlay("🍪 원고 ↔ 발행물 비교하는 중…"), unsafe_allow_html=True)
+        try:
+            st.session_state["compare_report"] = compare_engine.compare(approved, published, _refs_from_sheets(sheets))
+        finally:
+            _ov.empty()
 
     rep = st.session_state.get("compare_report")
     if rep:

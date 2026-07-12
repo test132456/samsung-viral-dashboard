@@ -63,6 +63,19 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checke
 .vh-bt{font-size:12.5px;font-weight:800;line-height:1.2;color:#16213d;}
 .vh-bs{font-size:9.5px;color:#9aa4b4;}
 .vh-mlabel{font-size:10px;font-weight:800;letter-spacing:1.2px;color:#aab3c2;padding:2px 4px 4px;}
+/* ===== 로딩 오버레이 (화면 중앙 · 쿠키 굽기) ===== */
+.vh-ovl{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;gap:16px;
+  align-items:center;justify-content:center;background:rgba(247,249,253,.86);backdrop-filter:blur(3px);}
+.vh-ovl-cookie{font-size:68px;line-height:1;animation:vhbake 1.15s ease-in-out infinite;
+  filter:drop-shadow(0 9px 15px rgba(180,120,40,.30));}
+@keyframes vhbake{0%,100%{transform:translateY(0) rotate(-7deg) scale(1);}
+  50%{transform:translateY(-16px) rotate(7deg) scale(1.06);}}
+.vh-ovl-msg{font-size:15px;font-weight:800;color:#2c3e74;letter-spacing:-.2px;}
+.vh-ovl-dots{display:flex;gap:7px;}
+.vh-ovl-dots i{width:9px;height:9px;border-radius:50%;background:#2f7bea;display:inline-block;animation:vhdot .9s ease-in-out infinite;}
+.vh-ovl-dots i:nth-child(2){animation-delay:.15s;}
+.vh-ovl-dots i:nth-child(3){animation-delay:.3s;}
+@keyframes vhdot{0%,100%{opacity:.25;transform:translateY(0);}50%{opacity:1;transform:translateY(-6px);}}
 </style>
 """
 
@@ -100,6 +113,14 @@ def pill(text: str, kind: str = "wait") -> str:
 
 def section(title: str) -> str:
     return f'<div class="vh-wrap"><div class="vh-sec">{title}</div></div>'
+
+
+def loading_overlay(msg: str = "🍪 굽는 중…") -> str:
+    """화면 중앙 로딩 오버레이 HTML. st.empty() 자리표시자에 넣고 끝나면 empty()."""
+    return ('<div class="vh-wrap"><div class="vh-ovl">'
+            '<div class="vh-ovl-cookie">🍪</div>'
+            '<div class="vh-ovl-dots"><i></i><i></i><i></i></div>'
+            f'<div class="vh-ovl-msg">{msg}</div></div></div>')
 
 
 _CHK_SYM = {"ok": "✓", "warn": "△", "fail": "✕", "pending": "–", "na": "—"}

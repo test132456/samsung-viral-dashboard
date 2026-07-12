@@ -77,13 +77,18 @@ def render_qa(sheets, claude=None):
         text = st.text_area("원고 텍스트", value=text_default, height=260)
 
     if st.button("검수 실행", type="primary", disabled=not text.strip(), key="qa_run"):
-        refs = _refs_from_sheets(sheets)
-        if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
-            refs = {**refs, "required": [r for r in refs.get("required", [])
-                                         if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
-        judge = (lambda t: claude.judge_expressions(t, "")) if (use_ai and claude) else None
-        st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
-        st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs, is_official=is_official)
+        _ov = st.empty()
+        _ov.markdown(ui.loading_overlay("🍪 원고 굽는 중… 심의 문구·특약명 살펴보는 중"), unsafe_allow_html=True)
+        try:
+            refs = _refs_from_sheets(sheets)
+            if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
+                refs = {**refs, "required": [r for r in refs.get("required", [])
+                                             if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
+            judge = (lambda t: claude.judge_expressions(t, "")) if (use_ai and claude) else None
+            st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
+            st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs, is_official=is_official)
+        finally:
+            _ov.empty()
 
     # 원고 작성 플로우 점검 — 검수 전에도 미리보기 표시 (가이드 플로우 순서)
     st.markdown("##### 📝 원고 작성 플로우 점검")
