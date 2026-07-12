@@ -41,18 +41,10 @@ def render_home(sheets, month: str):
     citations = sheets.read(schema.SHEET_CITATIONS).to_dict("records")
     briefing = sheets.read(schema.SHEET_BRIEFING).to_dict("records")
 
-    qas = kpi.qa_summary(qa, month)
     cite = kpi.citation_summary(citations, month)
     brief = kpi.briefing_rollup(briefing, month)
 
-    score = qas["latest_score"]
-    score_tone = "gray" if score is None else ("green" if score >= 85 else ("amber" if score >= 70 else "red"))
-
     cards_html = ui.kpi_cards([
-        {"icon": "🎯", "tone": score_tone, "label": "최근 QA 점수",
-         "value": score if score is not None else "—", "sub": "마지막 검수"},
-        {"icon": "🔍", "tone": "blue", "label": "이번달 QA 검수",
-         "value": f'{qas["count"]}건', "sub": month},
         {"icon": "📊", "tone": "violet", "label": "AI 인용률",
          "value": f'{cite["overall_rate"]}%', "sub": f'{cite["total_cited"]}/{cite["total_queries"]} 질의'},
         {"icon": "📡", "tone": "red", "label": "AI브리핑 노출",
