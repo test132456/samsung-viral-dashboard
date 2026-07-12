@@ -49,6 +49,26 @@ GLOBAL_CSS = """
 .chk-ok{background:#d8f3e3;} .chk-warn{background:#fff3cd;} .chk-fail{background:#fbdada;} .chk-pending{background:#f1f3f7;} .chk-na{background:#eef1f6;}
 .chk-ok .sym,.chk-ok .det{color:#1d7a4c;} .chk-warn .sym,.chk-warn .det{color:#b9760a;} .chk-fail .sym,.chk-fail .det{color:#c23636;}
 .chk-pending .sym,.chk-pending .det{color:#9aa4b4;} .chk-na .sym,.chk-na .det{color:#9aa4b4;}
+/* ===== 상세 섹션(A안): 헤더·칩·근거 행 ===== */
+.vh-shd{display:flex;align-items:center;gap:9px;margin:20px 0 11px;}
+.vh-shd-ic{width:27px;height:27px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.vh-shd-t{font-size:14px;font-weight:800;color:#16213d;letter-spacing:-.3px;}
+.vh-shd-s{margin-left:auto;font-size:11.5px;font-weight:800;border-radius:20px;padding:4px 12px;}
+.vh-glabel{font-size:12px;font-weight:800;color:#2c3e74;margin:14px 0 5px;padding-left:9px;border-left:3px solid #2f7bea;}
+.vh-sum{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:800;border-radius:10px;padding:8px 14px;margin-bottom:10px;}
+.vh-sum.ok{color:#1d7a4c;background:#e4f7ec;border:1px solid #bfe9d0;}
+.vh-sum.bad{color:#fff;background:#e23b3b;box-shadow:0 5px 14px rgba(226,59,59,.32);}
+.vh-chips{display:flex;flex-wrap:wrap;gap:7px;}
+.vh-cp{font-size:11.5px;color:#5f8a72;background:#f1f7f3;border:1px solid #dfece5;border-radius:20px;padding:4px 11px;}
+.vh-cf{font-size:11.5px;font-weight:800;color:#fff;background:#e23b3b;border-radius:20px;padding:5px 12px;box-shadow:0 4px 11px rgba(226,59,59,.3);}
+.vh-cwarn{font-size:11.5px;font-weight:800;color:#8a5a00;background:#ffe7b3;border:1px solid #f3d08a;border-radius:20px;padding:4px 11px;}
+.vh-ev{background:#fff;border:1px solid #eef2f8;border-left:4px solid #cbd5e6;border-radius:10px;padding:11px 14px;margin:8px 0;box-shadow:0 4px 12px rgba(20,30,55,.05);}
+.vh-ev-top{display:flex;align-items:center;gap:10px;}
+.vh-ev-dot{width:22px;height:22px;border-radius:50%;color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.vh-ev-name{font-size:13px;font-weight:800;color:#16213d;flex:1;min-width:0;}
+.vh-ev-badge{font-size:10.5px;font-weight:800;border-radius:20px;padding:3px 11px;white-space:nowrap;}
+.vh-ev-d{font-size:11px;color:#6b7688;font-weight:600;margin:5px 0 0 32px;}
+.vh-ev-q{font-size:11.5px;color:#3e4c66;background:#f6f8fc;border-left:3px solid #c3d0e6;border-radius:0 7px 7px 0;padding:7px 11px;margin:7px 0 0 32px;line-height:1.55;}
 /* ===== 사이드바 모던 내비 (A안) ===== */
 section[data-testid="stSidebar"] div[role="radiogroup"]{gap:4px;}
 section[data-testid="stSidebar"] div[role="radiogroup"] > label{
@@ -130,6 +150,19 @@ def page_header(title: str, subtitle: str = "") -> str:
     return f'<div class="vh-wrap"><div class="vh-phead"><h2>{title}</h2>{sub}</div></div>'
 
 
+def subhead(icon: str, title: str, tone: str = "blue", stat: str = "") -> str:
+    """상세 섹션 헤더 — 아이콘 칩 + 제목 + (우측) 요약 배지."""
+    bg, fg = TONE.get(tone, TONE["blue"])
+    s = f'<span class="vh-shd-s" style="background:{bg};color:{fg}">{stat}</span>' if stat else ""
+    return (f'<div class="vh-wrap"><div class="vh-shd">'
+            f'<span class="vh-shd-ic" style="background:{bg};color:{fg}">{icon}</span>'
+            f'<span class="vh-shd-t">{title}</span>{s}</div></div>')
+
+
+def group_label(text: str) -> str:
+    return f'<div class="vh-wrap"><div class="vh-glabel">{text}</div></div>'
+
+
 def loading_overlay(msg: str = "🍪 굽는 중…") -> str:
     """화면 중앙 로딩 오버레이 HTML. st.empty() 자리표시자에 넣고 끝나면 empty()."""
     return ('<div class="vh-wrap"><div class="vh-ovl">'
@@ -156,47 +189,46 @@ def deleted_html(deleted: list[str], limit: int = 15) -> str:
             f'🗑️ 삭제 표시된 부분 {len(deleted)}군데 — 본문 검수에서 제외됨</div>{rows}{extra}</div></div>')
 
 
-def _chip(text: str, ok: bool) -> str:
-    if ok:
-        return ('<span style="display:inline-block;margin:3px;padding:4px 10px;border-radius:20px;'
-                'background:#eef7f0;color:#3f8f63;font-size:11.5px;border:1px solid #d8ecdf">'
-                f'✓ {text}</span>')
-    return ('<span style="display:inline-block;margin:3px;padding:4px 10px;border-radius:20px;'
-            'background:#ffecec;color:#c23636;font-size:11.5px;font-weight:700;border:1px solid #f3caca">'
-            f'✕ {text}</span>')
+def _sum_pill(ok: bool, text: str) -> str:
+    return f'<div class="vh-sum {"ok" if ok else "bad"}">{"✓" if ok else "✕"} {text}</div>'
 
 
 def banned_detail(banned: list[str], manuscript: str, page_of=None) -> str:
-    """가이드 표현불가문구 전체를 원고와 대조 — 사용되면 ✕(빨강), 없으면 ✓(초록).
+    """가이드 표현불가문구 전체를 원고와 대조 — 사용은 강한 빨강(✕), 미사용은 조용한 초록(✓).
     page_of(term)→'쪽' 문자열을 넘기면 사용된 표현에 원고 쪽수를 붙인다."""
     if not banned:
         return ""
     ms = manuscript or ""
-    used = sum(1 for b in banned if b in ms)
-    color = "#c23636" if used else "#1d9d5f"
-    head = (f'<div style="font-size:12px;color:#5b6678;margin:2px 0 6px">표현불가 {len(banned)}개 중 '
-            f'<b style="color:{color}">{used}개 사용</b> · 나머지 미사용 (✓)</div>')
-    chips = "".join(_chip(b + (page_of(b) if (b in ms and page_of) else ""), b not in ms) for b in banned)
-    return f'<div class="vh-wrap">{head}<div>{chips}</div></div>'
+    used = [b for b in banned if b in ms]
+    summary = _sum_pill(not used,
+                        f"표현불가 {len(banned)}개 모두 미사용 · 통과" if not used
+                        else f"{len(used)}건 사용 · 수정 필요")
+    chips = ""
+    for b in banned:
+        if b in ms:
+            chips += f'<span class="vh-cf">✕ {b}{page_of(b) if page_of else ""}</span>'
+        else:
+            chips += f'<span class="vh-cp">✓ {b}</span>'
+    return f'<div class="vh-wrap">{summary}<div class="vh-chips">{chips}</div></div>'
 
 
 def rider_detail(rv: dict, ref_total: int, page_of=None) -> str:
-    """특약명 대조 결과 — 정확표기 ✓(초록), 오기 의심 ✕(빨강). 미언급은 개수만 안내."""
+    """특약명 대조 — 정확표기는 조용한 초록(✓), 오기 의심은 강한 빨강(✕)."""
     ok = rv.get("ok", [])
     mism = rv.get("mismatch", [])
     unused = rv.get("unused", [])
     if not (ok or mism):
-        note = f'<div style="font-size:12px;color:#8a94a6;margin:2px 0">기준 특약명 {ref_total}개 — 원고에서 언급된 특약이 없습니다.</div>'
-        return f'<div class="vh-wrap">{note}</div>'
-    head = (f'<div style="font-size:12px;color:#5b6678;margin:2px 0 6px">기준 특약명 {ref_total}개 중 '
-            f'<b style="color:#1d9d5f">{len(ok)}개 정확</b>'
-            + (f' · <b style="color:#c23636">{len(mism)}개 오기 의심</b>' if mism else "")
-            + (f' · {len(unused)}개 미언급' if unused else "") + "</div>")
-    chips = "".join(_chip(n, True) for n in ok)
+        return ('<div class="vh-wrap"><div class="vh-sum ok" style="color:#7a8597;background:#eef1f6;border-color:#dfe4ee">'
+                f'· 기준 특약명 {ref_total}개 — 원고에서 언급된 특약 없음</div></div>')
+    summary = _sum_pill(not mism,
+                        f"기준 {ref_total}개 중 {len(ok)}개 정식명 정확" if not mism
+                        else f"{len(mism)}건 오기 의심 · 정식명 확인 필요")
+    chips = "".join(f'<span class="vh-cp">✓ {n}</span>' for n in ok)
     for n in mism:
         pagestr = page_of(re.split(r"[(（]", n)[0].strip()) if page_of else ""
-        chips += _chip(n + " (정식명 확인)" + pagestr, False)
-    return f'<div class="vh-wrap">{head}<div>{chips}</div></div>'
+        chips += f'<span class="vh-cf">✕ {n} (정식명 확인){pagestr}</span>'
+    tail = f'<div style="font-size:10.5px;color:#9aa4b4;margin-top:7px">그 외 {len(unused)}개 미언급</div>' if unused else ""
+    return f'<div class="vh-wrap">{summary}<div class="vh-chips">{chips}</div>{tail}</div>'
 
 
 def required_detail(items: list[dict]) -> str:
@@ -244,23 +276,26 @@ def flow_checklist(items: list[dict]) -> str:
     return f'<div class="vh-wrap">{"".join(rows)}</div>'
 
 
+_BADGE = {"ok": "충족", "warn": "확인", "fail": "미충족", "na": "해당없음", "pending": "대기"}
+
+
 def evidence_checklist(items: list[dict]) -> str:
-    """항목별 ✓/✕ + 원고 근거(evidence) 발췌를 함께 렌더 — 사용자 직접 확인용."""
+    """항목별 상태 + 원고 근거 — 흰 카드 + 좌측 컬러바 + 상태 배지 + 인용 박스."""
     rows = []
     for it in items:
-        fg, bg, sym = _FLOW_C.get(it.get("status", "pending"), _FLOW_C["pending"])
+        status = it.get("status", "pending")
+        fg, bg, sym = _FLOW_C.get(status, _FLOW_C["pending"])
         ev = it.get("evidence", "")
-        ev_html = (f'<div style="margin-top:6px;padding:6px 10px;background:#f7f9fc;border:1px solid #e6ebf3;'
-                   f'border-radius:7px;font-size:11.5px;color:#40506b;line-height:1.5">원고: “{ev}”</div>'
-                   ) if ev else ""
+        detail = it.get("detail", "")
+        d_html = f'<div class="vh-ev-d">{detail}</div>' if detail else ""
+        q_html = f'<div class="vh-ev-q">원고: “{ev}”</div>' if ev else ""
         rows.append(
-            f'<div style="padding:9px 13px;margin:6px 0;background:{bg};border-left:4px solid {fg};border-radius:9px">'
-            f'<div style="display:flex;align-items:center;gap:10px">'
-            f'<div style="width:20px;height:20px;border-radius:50%;background:{fg};color:#fff;font-weight:800;'
-            f'font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0">{sym}</div>'
-            f'<div style="font-size:12.5px;font-weight:700;color:#16213d;flex:1;min-width:0">{it["name"]}</div>'
-            f'<div style="font-size:11px;color:#6b7688;text-align:right">{it.get("detail", "")}</div></div>'
-            f'{ev_html}</div>')
+            f'<div class="vh-ev" style="border-left-color:{fg}">'
+            f'<div class="vh-ev-top">'
+            f'<span class="vh-ev-dot" style="background:{fg}">{sym}</span>'
+            f'<span class="vh-ev-name">{it["name"]}</span>'
+            f'<span class="vh-ev-badge" style="background:{bg};color:{fg}">{_BADGE.get(status, "")}</span>'
+            f'</div>{d_html}{q_html}</div>')
     return f'<div class="vh-wrap">{"".join(rows)}</div>'
 
 

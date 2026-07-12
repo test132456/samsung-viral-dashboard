@@ -187,13 +187,16 @@ def render_qa(sheets, claude=None):
 
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:
-        st.markdown("###### 🚫 표현불가 문구 점검 (사용 ✕ / 미사용 ✓)")
+        _used = sum(1 for b in g["banned"] if b in text)
+        st.markdown(ui.subhead("🚫", "표현불가 문구 점검", "red" if _used else "green",
+                               stat=f"{len(g['banned'])}개 중 {_used}개 사용"), unsafe_allow_html=True)
         st.markdown(ui.banned_detail(g["banned"], text, page_of=pg), unsafe_allow_html=True)
     if report["banned"]:
         st.error("기본 사전 금지표현: " + ", ".join(f"'{b['term']}'{pg(b['term'])}" for b in report["banned"]))
 
     # --- 특약명 상세 (가이드 정식 담보명 기준) ---
-    st.markdown(f"###### 📑 특약명 대조 ({rider_src} 담보명 기준 · 정확 ✓ / 오기 의심 ✕)")
+    st.markdown(ui.subhead("📑", "특약명 대조", "red" if rv["mismatch_count"] else "green",
+                           stat=f"{rider_src} · {rv['ok_count']}/{len(ref_riders)} 정확"), unsafe_allow_html=True)
     st.markdown(ui.rider_detail(rv, len(ref_riders), page_of=pg), unsafe_allow_html=True)
     if terms_confirm is not None:
         st.caption(f"📎 약관 교차확인: 정식 특약명 {len(ref_riders)}개 중 {terms_confirm}개가 업로드한 약관에서도 확인됨")
@@ -202,14 +205,15 @@ def render_qa(sheets, claude=None):
 
     # --- 가이드 요청·참고 사항 점검 (항목별 ✓/✕ + 원고 근거) ---
     rq = req_check.summary(req_items)
-    st.markdown("##### 📋 가이드 요청사항 점검 (원고 근거 표시)")
+    _rq_tone = "green" if rq["fail"] == 0 else "red"
+    st.markdown(ui.subhead("📋", "가이드 요청사항 점검", _rq_tone,
+                           stat=f"통과율 {rq['pass_rate']}% · ✕{rq['fail']}"), unsafe_allow_html=True)
     _page_note = " · 잘못된 부분은 원고 쪽수(추정) 표시" if pages else ""
-    st.caption(f"✓ 충족 {rq['ok']} · △ 확인 {rq['warn']} · ✕ 미충족 {rq['fail']} · 통과율 {rq['pass_rate']}%  "
-               f"— 각 항목이 원고에 어떻게 반영됐는지 근거 문장을 함께 보여줍니다{_page_note}.")
+    st.caption(f"각 항목이 원고에 어떻게 반영됐는지 근거 문장을 함께 보여줍니다{_page_note}.")
     for grp in ["요청·참고 사항", "담보·혜택", "필수 고지문구"]:
         gi = [it for it in req_items if it["group"] == grp]
         if gi:
-            st.markdown(f"**{grp}**")
+            st.markdown(ui.group_label(grp), unsafe_allow_html=True)
             st.markdown(ui.evidence_checklist(gi), unsafe_allow_html=True)
 
     # --- 키워드 / AI ---
