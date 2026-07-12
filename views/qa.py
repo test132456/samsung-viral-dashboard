@@ -2,7 +2,7 @@
 import streamlit as st
 import docx, io
 from datetime import date
-from core import qa_engine, schema, qa_checklist, manuscript_parser, terms
+from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guide
 from views import ui
 
 
@@ -55,6 +55,7 @@ def render_qa(sheets, claude=None):
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
         terms_up = st.file_uploader("약관 파일 (pdf/docx/txt)", type=["pdf", "docx", "txt"], key="qa_terms")
+        guide_up = st.file_uploader("작성 가이드 (pptx)", type=["pptx"], key="qa_guide")
     with col_in:
         text = st.text_area("원고 텍스트", value=text_default, height=260)
 
@@ -106,6 +107,34 @@ def render_qa(sheets, claude=None):
             st.caption(f"약관에서 특약명 {len(official)}개 추출됨. 원고 텍스트를 입력하면 대조합니다.")
         with st.expander(f"약관에서 추출한 특약명 목록 ({len(official)}개)"):
             st.write("\n".join(f"- {o}" for o in official) if official else "추출된 특약명이 없습니다.")
+
+    # 📗 작성 가이드 준수 체크 (가이드 PPT 업로드 시)
+    if guide_up is not None:
+        g = guide.parse_guide(guide.extract_text(guide_up.getvalue()))
+        st.markdown("##### 📗 작성 가이드 준수 체크")
+        if text.strip():
+            gc = guide.check(text, g)
+            st.markdown(ui.kpi_cards([
+                {"icon": "🚫", "tone": "red" if gc["banned_hits"] else "green",
+                 "label": "가이드 금지표현", "value": f'{len(gc["banned_hits"])}건', "sub": "발견"},
+                {"icon": "#️⃣", "tone": "green" if not gc["tags_missing"] else "amber",
+                 "label": "필수 해시태그", "value": f'{len(gc["tags_included"])}/{gc["tags_total"]}', "sub": "포함"},
+                {"icon": "🔑", "tone": "green" if gc["keyword_ok"] else "amber",
+                 "label": "'해외여행보험' 키워드", "value": f'{gc["keyword_count"]}개', "sub": "가이드 3~5개"},
+            ]), unsafe_allow_html=True)
+            if gc["banned_hits"]:
+                st.error("가이드 금지표현: " + ", ".join(f"'{b}'" for b in gc["banned_hits"]))
+            if gc["tags_missing"]:
+                st.warning("누락된 필수 해시태그: " + " ".join(gc["tags_missing"]))
+            if not gc["keyword_ok"]:
+                st.info(f"'해외여행보험' 키워드 {gc['keyword_count']}개 — 가이드 권장 3~5개")
+            if not gc["banned_hits"] and not gc["tags_missing"] and gc["keyword_ok"]:
+                st.success("가이드 주요 항목(금지표현·해시태그·키워드) 준수 확인")
+        else:
+            st.caption(f"가이드에서 금지표현 {len(g['banned'])}개·해시태그 {len(g['hashtags'])}개 추출. 원고를 입력하면 대조합니다.")
+        with st.expander("가이드에서 추출한 기준 보기"):
+            st.write("**금지표현**: " + (", ".join(g["banned"]) or "-"))
+            st.write("**필수 해시태그**: " + (" ".join(g["hashtags"]) or "-"))
 
     report = st.session_state.get("qa_report")
     if report:
