@@ -103,12 +103,3 @@ def render_compare(sheets):
         _extra = max(0, len(changed) - LIMIT) + max(0, len(deleted) - LIMIT) + max(0, len(added) - LIMIT)
         if _extra:
             st.caption(f"… 외 {_extra}건 더 있음 (유형별 상위 {LIMIT}건만 표시)")
-
-        if st.button("결과 시트에 저장", key="cmp_save"):
-            sheets.append(schema.SHEET_COMPARE, {
-                "content_id": st.session_state.get("compare_cid", ""), "match_rate": rep["match_rate"],
-                "changed": rep["changed"], "deleted": rep["deleted"], "added": rep["added"],
-                "notice_ok": "Y" if rep["notice_ok"] else "N",
-                "rider_ok": "Y" if rep["rider_ok"] else "N",
-                "checked_at": date.today().isoformat()})
-            st.success("저장 완료")
