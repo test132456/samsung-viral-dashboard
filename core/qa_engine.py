@@ -10,6 +10,7 @@ def run_qa(text: str, refs: dict, ai_judge: Optional[Callable[[str], list]] = No
     prices = qa_rules.check_price(text)
     riders = qa_rules.check_riders(text, refs.get("riders", []))
     missing_req = qa_rules.check_required(text, refs.get("required", []))
+    req_status = qa_rules.required_status(text, refs.get("required", []))
     kw = qa_rules.check_keywords(text, refs.get("keywords", []))
 
     ai_findings = []
@@ -33,6 +34,7 @@ def run_qa(text: str, refs: dict, ai_judge: Optional[Callable[[str], list]] = No
         "riders": riders, "rider_error_count": len(riders),
         "prices": prices, "price_found": bool(prices),
         "missing_required": missing_req, "missing_phrase": bool(missing_req),
+        "required_status": req_status,
         "missing_keywords": kw["missing_keywords"],
         "has_required_hashtag": kw["has_required_hashtag"],
         "ai_findings": ai_findings,

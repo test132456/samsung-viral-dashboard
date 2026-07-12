@@ -62,3 +62,15 @@ def test_check_keywords(refs):
     assert result["missing_keywords"]
     assert "해외여행보험" in result["missing_keywords"]
     assert result["has_required_hashtag"] is False
+
+
+def test_check_required_ignores_spacing_and_variants():
+    # '|' 대체표현 + 띄어쓰기 차이 무시
+    required = [{"phrase": "준법감시인확인필|예금자보호|상품설명서 및 약관", "type": "고지문구"}]
+    blog = ("...상품설명서 및  약관을 읽어 보시기 바랍니다. "
+            "준법감시인확인필 제00-0-0000호")
+    assert qa_rules.check_required(blog, required) == []          # 하나라도 있으면 충족
+    assert qa_rules.check_required("고지 없는 원고", required)     # 하나도 없으면 누락
+    st = qa_rules.required_status(blog, required)
+    assert st[0]["present"] is True
+    assert "예금자보호" in st[0]["variants"]

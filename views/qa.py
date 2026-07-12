@@ -69,7 +69,7 @@ def render_qa(sheets, claude=None):
         refs = _refs_from_sheets(sheets)
         if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
             refs = {**refs, "required": [r for r in refs.get("required", [])
-                                         if "유료광고" not in str(r.get("phrase", ""))]}
+                                         if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
         judge = (lambda t: claude.judge_expressions(t, "")) if (use_ai and claude) else None
         st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
         st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs, is_official=is_official)
@@ -165,8 +165,10 @@ def render_qa(sheets, claude=None):
             st.error("금지표현: " + ", ".join(f"'{b['term']}'" for b in report["banned"]))
         for r in report["riders"]:
             st.warning(f"특약명: ❌ '{r['found']}' → ✅ {r['official_name']}")
-        if report["missing_required"]:
-            st.warning("필수문구 누락: " + ", ".join(m["phrase"] for m in report["missing_required"]))
+        rs = report.get("required_status", [])
+        if rs:
+            st.markdown("###### 📋 필수문구 상세 (있는 것 ✓ / 빠진 것 ✕)")
+            st.markdown(ui.required_detail(rs), unsafe_allow_html=True)
         if report["missing_keywords"]:
             st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
         for f in report["ai_findings"]:

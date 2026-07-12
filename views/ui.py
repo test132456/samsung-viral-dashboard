@@ -118,6 +118,30 @@ def deleted_html(deleted: list[str], limit: int = 15) -> str:
             f'🗑️ 삭제 표시된 부분 {len(deleted)}군데 — 본문 검수에서 제외됨</div>{rows}{extra}</div></div>')
 
 
+def required_detail(items: list[dict]) -> str:
+    """필수문구 항목별 포함/누락을 정확히 나열. items: [{type, variants, present, phrase}]."""
+    if not items:
+        return ""
+    rows = []
+    for it in items:
+        label = it.get("type") or (it["variants"][0] if it.get("variants") else it.get("phrase", ""))
+        need = " / ".join(it.get("variants") or []) or it.get("phrase", "")
+        if it.get("present"):
+            rows.append(
+                '<div style="display:flex;gap:8px;align-items:baseline;padding:8px 12px;margin:5px 0;'
+                'background:#eafaf0;border:1px solid #cdeede;border-radius:9px">'
+                '<span style="color:#1d9d5f;font-weight:800">✓</span>'
+                f'<span style="font-size:12.5px;color:#16213d"><b>{label}</b> — 원고에 포함됨</span></div>')
+        else:
+            rows.append(
+                '<div style="display:flex;gap:8px;align-items:baseline;padding:8px 12px;margin:5px 0;'
+                'background:#ffecec;border:1px solid #f3caca;border-radius:9px">'
+                '<span style="color:#e23b3b;font-weight:800">✕</span>'
+                f'<span style="font-size:12.5px;color:#16213d"><b>{label}</b> — 누락 · 다음 중 하나 필요: '
+                f'<span style="color:#c23636;font-weight:600">{need}</span></span></div>')
+    return f'<div class="vh-wrap">{"".join(rows)}</div>'
+
+
 def checklist_table(items: list[dict]) -> str:
     """items: [{name, status: ok|warn|fail, detail}] → 색상 체크리스트 표 HTML."""
     head = "".join(f"<th>{i['name']}</th>" for i in items)

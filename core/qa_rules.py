@@ -40,10 +40,36 @@ def check_price(text: str) -> list[dict]:
             for m in _PRICE_RE.finditer(text)]
 
 
+def _norm(s: str) -> str:
+    """띄어쓰기·개행 차이를 무시하기 위해 공백류를 모두 제거."""
+    return re.sub(r"\s+", "", s or "")
+
+
+def _variants(phrase: str) -> list[str]:
+    """'예금자보호|준법감시인확인필' 처럼 '|' 로 대체표현을 여러 개 지정 가능."""
+    return [v.strip() for v in (phrase or "").split("|") if v.strip()]
+
+
+def _phrase_present(text_norm: str, phrase: str) -> bool:
+    """대체표현 중 하나라도 (띄어쓰기 무시) 들어있으면 충족."""
+    return any(_norm(v) in text_norm for v in _variants(phrase))
+
+
 def check_required(text: str, required: list[dict]) -> list[dict]:
-    """필수문구(유료광고·고지) 누락 검출. 없는 것만 반환."""
+    """필수문구(유료광고·고지) 누락 검출. 없는 것만 반환.
+    phrase 에 '|' 로 대체표현을 넣으면 그 중 하나만 있어도 충족하며, 띄어쓰기는 무시한다."""
+    tn = _norm(text)
     return [{"phrase": r["phrase"], "type": r.get("type", "")}
-            for r in required if r["phrase"] not in text]
+            for r in required if not _phrase_present(tn, r["phrase"])]
+
+
+def required_status(text: str, required: list[dict]) -> list[dict]:
+    """표시용: 각 필수문구 항목의 포함/누락 여부와 허용 표현 목록."""
+    tn = _norm(text)
+    return [{"phrase": r["phrase"], "type": r.get("type", ""),
+             "variants": _variants(r["phrase"]),
+             "present": _phrase_present(tn, r["phrase"])}
+            for r in required]
 
 
 def check_keywords(text: str, keywords: list[dict]) -> dict:
