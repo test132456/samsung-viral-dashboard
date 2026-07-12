@@ -28,7 +28,6 @@ def _approved_from_upload(up) -> str:
 def render_compare(sheets):
     st.subheader("🔀 원고 ↔ 발행물 비교")
     st.caption("워드 원고(이름 선택)와 네이버 발행 URL을 자동수집해 문장 단위로 비교")
-    content_id = st.text_input("content_id (선택)", key="cmp_cid")
     col_l, col_r = st.columns(2)
     with col_l:
         up = st.file_uploader("심의 완료본 (.docx/.txt) — 여러 명 원고 자동 분리",
@@ -48,7 +47,6 @@ def render_compare(sheets):
 
     if st.button("비교 실행", type="primary", disabled=not (approved.strip() and published.strip()), key="cmp_run"):
         st.session_state["compare_report"] = compare_engine.compare(approved, published, _refs_from_sheets(sheets))
-        st.session_state["compare_cid"] = content_id
 
     rep = st.session_state.get("compare_report")
     if rep:

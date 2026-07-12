@@ -53,7 +53,6 @@ def render_qa(sheets, claude=None):
     col_in, col_opt = st.columns([3, 1])
     with col_opt:
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
-        content_id = st.text_input("content_id (선택)", key="qa_cid")
         title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
         terms_up = st.file_uploader("약관 파일 (docx/txt)", type=["docx", "txt"], key="qa_terms")
     with col_in:
