@@ -44,12 +44,40 @@ client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/your-s
 
 ---
 
-## 배포 (Streamlit Community Cloud)
+## 배포 (Streamlit Community Cloud · 무료)
 
-1. 이 레포를 GitHub에 push
-2. [share.streamlit.io](https://share.streamlit.io) 에서 레포 연결
-3. **Advanced settings → Secrets** 에 위 `secrets.toml` 내용 전체를 붙여넣기
-4. Deploy 클릭
+> 실제 운영 버전(`app.py`) 배포 순서. GitHub 로그인/권한 승인은 직접 진행합니다.
+
+**0. 사전 준비 (한 번만)**
+- 구글시트를 서비스계정 이메일(`...@....iam.gserviceaccount.com`)과 **공유(편집자)** — 안 하면 "구글시트 연결 실패"가 뜹니다.
+- 서비스계정 JSON, 시트 ID, (선택) Claude 키 준비.
+
+**1. 배포**
+1. [share.streamlit.io](https://share.streamlit.io) 접속 → **Continue with GitHub** 로 로그인/권한 승인.
+2. **Create app → Deploy a public app from GitHub**.
+3. 값 입력:
+   - Repository: `test132456/samsung-viral-dashboard`
+   - Branch: `master`
+   - **Main file path: `app.py`**  ← 데모로 띄우려면 `demo_app.py`
+4. **Advanced settings**:
+   - **Python version: 3.11 이상** (권장 3.12)
+   - **Secrets**: 아래 형식 전체를 붙여넣기 (로컬 `secrets.toml`과 동일)
+     ```toml
+     SPREADSHEET_ID = "..."
+     ANTHROPIC_API_KEY = "sk-ant-..."   # 없으면 이 줄 생략 (AI 2차검수만 비활성)
+
+     [gcp_service_account]
+     type = "service_account"
+     project_id = "..."
+     private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+     client_email = "...@....iam.gserviceaccount.com"
+     # (나머지 JSON 필드 그대로)
+     ```
+5. **Deploy** → 1~2분 후 `https://<앱이름>.streamlit.app` URL 발급.
+
+**갱신**: 이후 `master`에 push하면 자동 재배포됩니다.
+
+> ⚠️ Secrets는 절대 레포에 커밋하지 마세요(`.streamlit/secrets.toml`은 `.gitignore` 처리됨). Cloud의 Secrets 입력창에만 넣습니다.
 
 ---
 

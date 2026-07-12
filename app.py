@@ -4,7 +4,7 @@ from datetime import date
 from core.sheets import Sheets
 from core.claude_client import ClaudeClient
 from core import schema
-from views import home, schedule, qa, reviews, compare, ai_briefing, ui
+from views import qa, compare, ai_briefing, ui
 
 st.set_page_config(page_title="삼성화재 바이럴 운영 대시보드", layout="wide")
 
