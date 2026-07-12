@@ -182,6 +182,27 @@ def required_detail(items: list[dict]) -> str:
     return f'<div class="vh-wrap">{"".join(rows)}</div>'
 
 
+_FLOW_C = {"ok": ("#1d9d5f", "#eafaf0", "✓"), "warn": ("#b9760a", "#fff8e6", "△"),
+           "fail": ("#c23636", "#ffecec", "✕"), "pending": ("#9aa4b4", "#f4f6fa", "–"),
+           "na": ("#9aa4b4", "#eef1f6", "—")}
+
+
+def flow_checklist(items: list[dict]) -> str:
+    """가이드 원고 작성 플로우를 세로 스텝으로 렌더 (번호·상태·설명)."""
+    rows = []
+    for idx, it in enumerate(items, 1):
+        fg, bg, sym = _FLOW_C.get(it.get("status", "pending"), _FLOW_C["pending"])
+        rows.append(
+            f'<div style="display:flex;align-items:center;gap:12px;padding:9px 14px;margin:6px 0;'
+            f'background:{bg};border-left:4px solid {fg};border-radius:9px">'
+            f'<div style="width:22px;height:22px;border-radius:50%;background:{fg};color:#fff;font-weight:800;'
+            f'font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">{sym}</div>'
+            f'<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700;color:#16213d">'
+            f'{idx}. {it["name"]}</div>'
+            f'<div style="font-size:11.5px;color:#6b7688;margin-top:1px">{it.get("detail", "")}</div></div></div>')
+    return f'<div class="vh-wrap">{"".join(rows)}</div>'
+
+
 def checklist_table(items: list[dict]) -> str:
     """items: [{name, status: ok|warn|fail, detail}] → 색상 체크리스트 표 HTML."""
     head = "".join(f"<th>{i['name']}</th>" for i in items)

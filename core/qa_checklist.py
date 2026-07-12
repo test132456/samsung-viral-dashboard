@@ -1,23 +1,28 @@
-"""QA 구조 체크리스트 — 제목/본문의 위치·형식 조건 점검. 순수 함수.
+"""QA 원고 작성 플로우 점검 — 가이드(원고 작성 예시 플로우) 순서대로 구조 점검. 순수 함수.
 
-각 항목: {name, status: 'ok'|'warn'|'fail', detail}
- ✓ ok=충족 / △ warn=부분충족·위치미흡 / ✕ fail=미충족
+가이드 플로우: 제목 → 유료광고 문안 → 특약 소개(+★보장문장) → 고지문구(하단) → 해시태그(최하단)
+각 항목: {name, status: 'ok'|'warn'|'fail'|'na', detail}
+ ✓ ok=충족 / △ warn=부분충족·위치미흡 / ✕ fail=미충족 / — na=해당없음
 """
 from __future__ import annotations
 import re
+from core import qa_rules
 
-_URL_RE = re.compile(r"https?://\S+")
-TITLE_MAX = 25            # 제목 글자수 상한
-HEAD_RATIO = 0.20         # 본문 '첫 부분' 비율
-TAIL_RATIO = 0.20         # 본문 '하단' 비율
+TITLE_MAX = 25            # 제목 글자수 상한 (가이드 기준)
+HEAD_RATIO = 0.20         # 본문 '첫 부분(상단)' 비율
+TAIL_RATIO = 0.25         # 본문 '하단' 비율
+_TAG_RE = re.compile(r"#[가-힣A-Za-z0-9_]+")
+# ★ 특약 보장문장 패턴: "(담보명) 특약 가입 시, 가입 금액 한도로 보장"
+_BENEFIT_RE = re.compile(r"가입금액한도")
 
-# 체크리스트 항목명 (evaluate/blank 공통)
+# 체크리스트 항목명 (evaluate/blank 공통, 가이드 플로우 순서)
 NAMES = [
     "제목 키워드 시작",
     f"제목 {TITLE_MAX}자 이내",
     "유료광고 문안(상단)",
-    "필수 고지문구",
-    "하단 가입 링크",
+    "특약 보장문장",
+    "고지문구(하단)",
+    "해시태그(최하단)",
 ]
 
 
@@ -31,9 +36,9 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
     title = (title or "").strip()
     body = body or ""
     keywords = [k["keyword"] for k in refs.get("keywords", []) if k.get("type") == "키워드"]
-    required = [str(r.get("phrase", "")) for r in refs.get("required", []) if r.get("phrase")]
     head = body[:max(60, int(len(body) * HEAD_RATIO))]
     tail = body[-max(80, int(len(body) * TAIL_RATIO)):] if body else ""
+    body_norm, tail_norm = qa_rules._norm(body), qa_rules._norm(tail)
 
     items = []
 
@@ -59,32 +64,48 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
     # ③ 유료광고 문안 (본문 첫 부분) — 공식블로그는 해당없음
     if is_official:
         items.append({"name": "유료광고 문안(상단)", "status": "na", "detail": "공식블로그 · 해당없음"})
-    elif "유료광고" in head:
+    elif "유료광고" in head or "원고료" in head or "광고비" in head:
         items.append({"name": "유료광고 문안(상단)", "status": "ok", "detail": "본문 첫 부분에 표기"})
-    elif "유료광고" in body:
+    elif "유료광고" in body or "원고료" in body or "광고비" in body:
         items.append({"name": "유료광고 문안(상단)", "status": "warn", "detail": "표기 있으나 상단 아님"})
     else:
-        items.append({"name": "유료광고 문안(상단)", "status": "fail", "detail": "유료광고 표기 없음"})
+        items.append({"name": "유료광고 문안(상단)", "status": "fail", "detail": "유료광고 문안 없음"})
 
-    # ④ 필수 고지문구 (ref_required 기준 — 예보법·준법감시인확인필 등)
-    if not required:
-        items.append({"name": "필수 고지문구", "status": "warn", "detail": "고지문구 기준 미설정"})
+    # ④ ★ 특약 보장문장 — 특약 보장 언급 시 '(담보명) 특약 가입 시, 가입 금액 한도로 보장' 문장 필수
+    n_benefit = len(_BENEFIT_RE.findall(body_norm))
+    if "특약" not in body:
+        items.append({"name": "특약 보장문장", "status": "warn", "detail": "특약 소개 문단이 없음"})
+    elif n_benefit == 0:
+        items.append({"name": "특약 보장문장", "status": "fail", "detail": "'가입 금액 한도로 보장' 문장 누락"})
     else:
-        present = [p for p in required if p in body]
-        if len(present) == len(required):
-            items.append({"name": "필수 고지문구", "status": "ok", "detail": "고지문구 모두 포함"})
-        elif present:
-            items.append({"name": "필수 고지문구", "status": "warn", "detail": f"{len(present)}/{len(required)} 포함"})
+        items.append({"name": "특약 보장문장", "status": "ok", "detail": f"보장문장 {n_benefit}곳"})
+
+    # ⑤ 고지문구 (하단 배치) — ref_required 중 '고지' 유형 기준
+    gojib = [r for r in refs.get("required", []) if "고지" in str(r.get("type", ""))] \
+        or refs.get("required", [])
+    if not gojib:
+        items.append({"name": "고지문구(하단)", "status": "warn", "detail": "고지문구 기준 미설정"})
+    else:
+        present = [r for r in gojib if qa_rules._phrase_present(body_norm, r.get("phrase", ""))]
+        in_tail = [r for r in gojib if qa_rules._phrase_present(tail_norm, r.get("phrase", ""))]
+        if not present:
+            items.append({"name": "고지문구(하단)", "status": "fail", "detail": "고지문구 없음"})
+        elif in_tail:
+            items.append({"name": "고지문구(하단)", "status": "ok", "detail": "하단에 고지문구 포함"})
         else:
-            items.append({"name": "필수 고지문구", "status": "fail", "detail": "고지문구 없음"})
+            items.append({"name": "고지문구(하단)", "status": "warn", "detail": "고지문구 있으나 하단 아님"})
 
-    # ⑤ 본문 하단 가입 링크
-    if _URL_RE.search(tail):
-        items.append({"name": "하단 가입 링크", "status": "ok", "detail": "본문 하단에 링크"})
-    elif _URL_RE.search(body):
-        items.append({"name": "하단 가입 링크", "status": "warn", "detail": "링크 있으나 하단 아님"})
+    # ⑥ 해시태그 (최하단 배치)
+    tags = _TAG_RE.findall(body)
+    tail_tags = _TAG_RE.findall(tail)
+    if not tags:
+        items.append({"name": "해시태그(최하단)", "status": "fail", "detail": "해시태그 없음"})
+    elif len(tags) >= 3 and tail_tags:
+        items.append({"name": "해시태그(최하단)", "status": "ok", "detail": f"{len(tags)}개 · 하단"})
+    elif tail_tags:
+        items.append({"name": "해시태그(최하단)", "status": "warn", "detail": f"{len(tags)}개 (권장 3개+)"})
     else:
-        items.append({"name": "하단 가입 링크", "status": "fail", "detail": "가입 링크 없음"})
+        items.append({"name": "해시태그(최하단)", "status": "warn", "detail": f"{len(tags)}개 · 하단 아님"})
 
     return items
 

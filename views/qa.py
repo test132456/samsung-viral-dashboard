@@ -100,16 +100,16 @@ def render_qa(sheets, claude=None):
         st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
         st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs, is_official=is_official)
 
-    # 구조 체크리스트 — 검수 전에도 미리보기 표시
-    st.markdown("##### 📋 구조 체크리스트")
+    # 원고 작성 플로우 점검 — 검수 전에도 미리보기 표시 (가이드 플로우 순서)
+    st.markdown("##### 📝 원고 작성 플로우 점검")
     cl = st.session_state.get("qa_checklist")
-    st.markdown(ui.checklist_table(cl or qa_checklist.blank()), unsafe_allow_html=True)
+    st.markdown(ui.flow_checklist(cl or qa_checklist.blank()), unsafe_allow_html=True)
     if cl:
         cs = qa_checklist.summary(cl)
         st.caption(f"✓ 충족 {cs['ok']} · △ 부분 {cs['warn']} · ✕ 미충족 {cs['fail']} · 통과율 {cs['pass_rate']}%  "
-                   f"· ④ 필수 고지문구는 ref_required(필수문구) 시트 기준입니다.")
+                   f"· 가이드 '원고 작성 예시 플로우' 기준 (제목→유료광고→특약 보장문장→고지문구→해시태그)")
     else:
-        st.caption("제목·원고 입력 후 '검수 실행'을 누르면 위 5개 항목이 ✓ / △ / ✕ 로 채워집니다.")
+        st.caption("제목·원고 입력 후 '검수 실행'을 누르면 가이드 플로우 항목이 ✓ / △ / ✕ 로 채워집니다.")
 
     # ===== 통합 검수 결과 (검수 실행 후) =====
     report = st.session_state.get("qa_report")
