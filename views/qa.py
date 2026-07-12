@@ -1,8 +1,8 @@
-"""QA검수 탭 (1순위) — 워드 다중 원고 분리 + 이름 필터 + QA + 구조 체크리스트."""
+"""심의전 원고 검수 탭 — 워드 다중원고 분리 + 이름 필터 + 심의 문구 QA + 약관 대조 + 구조 체크리스트."""
 import streamlit as st
 import docx, io
 from datetime import date
-from core import qa_engine, schema, qa_checklist, manuscript_parser
+from core import qa_engine, schema, qa_checklist, manuscript_parser, terms
 from views import ui
 
 
@@ -43,9 +43,10 @@ def _load_upload(up):
 
 
 def render_qa(sheets, claude=None):
-    st.subheader("🔍 원고 QA 자동검수")
+    st.subheader("📝 심의전 원고 검수")
+    st.caption("발행 전 초안 원고를 심의 넣기 전에 점검 — 금지·과장 문구, 약관 특약명 대조, 구조 체크리스트")
 
-    up = st.file_uploader("원고 업로드 (.docx/.txt) — 여러 명 원고가 든 워드도 자동 분리",
+    up = st.file_uploader("초안 원고 업로드 (.docx/.txt) — 여러 명 원고가 든 워드도 자동 분리",
                           type=["docx", "txt"], key="qa_uploader")
     title_default, text_default, _url = _load_upload(up)
 
@@ -54,6 +55,7 @@ def render_qa(sheets, claude=None):
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         content_id = st.text_input("content_id (선택)", key="qa_cid")
         title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
+        terms_up = st.file_uploader("약관 파일 (docx/txt)", type=["docx", "txt"], key="qa_terms")
     with col_in:
         text = st.text_area("원고 텍스트", value=text_default, height=260)
 
@@ -73,6 +75,30 @@ def render_qa(sheets, claude=None):
                    f"· ④ 필수 고지문구는 ref_required(필수문구) 시트 기준입니다.")
     else:
         st.caption("제목·원고 입력 후 '검수 실행'을 누르면 위 5개 항목이 ✓ / △ / ✕ 로 채워집니다.")
+
+    # 📜 약관 대조 (약관 파일 업로드 시)
+    if terms_up is not None:
+        tdata = terms_up.getvalue()
+        tt = (manuscript_parser.all_text(tdata) if terms_up.name.lower().endswith(".docx")
+              else tdata.decode("utf-8", "ignore"))
+        official = terms.extract_riders(tt)
+        st.markdown("##### 📜 약관 대조")
+        if text.strip() and official:
+            cov = terms.coverage(text, official)
+            st.markdown(ui.kpi_cards([
+                {"icon": "📗", "tone": "blue", "label": "약관 특약명", "value": f'{cov["total"]}개', "sub": "업로드 약관"},
+                {"icon": "✅", "tone": "green" if cov["included_count"] else "gray",
+                 "label": "원고 정확 표기", "value": f'{cov["included_count"]}개', "sub": "약관과 일치"},
+            ]), unsafe_allow_html=True)
+            if cov["included"]:
+                st.success("원고에 약관 정식명 그대로 표기된 특약:\n" + "\n".join(f"- {o}" for o in cov["included"]))
+            else:
+                st.warning("원고에서 약관 정식 특약명과 정확히 일치하는 표기를 찾지 못했습니다 "
+                           "— 특약명 오기 가능(위 QA '특약명 오류'도 함께 확인).")
+        else:
+            st.caption(f"약관에서 특약명 {len(official)}개 추출됨. 원고 텍스트를 입력하면 대조합니다.")
+        with st.expander(f"약관에서 추출한 특약명 목록 ({len(official)}개)"):
+            st.write("\n".join(f"- {o}" for o in official) if official else "추출된 특약명이 없습니다.")
 
     report = st.session_state.get("qa_report")
     if report:

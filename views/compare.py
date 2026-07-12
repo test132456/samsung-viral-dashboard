@@ -26,7 +26,8 @@ def _approved_from_upload(up) -> str:
 
 
 def render_compare(sheets):
-    st.subheader("🔀 심의 완료본 vs 실제 발행본 비교")
+    st.subheader("🔀 원고 ↔ 발행물 비교")
+    st.caption("워드 원고(이름 선택)와 네이버 발행 URL을 자동수집해 문장 단위로 비교")
     content_id = st.text_input("content_id (선택)", key="cmp_cid")
     col_l, col_r = st.columns(2)
     with col_l:
