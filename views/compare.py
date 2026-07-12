@@ -57,17 +57,15 @@ def render_compare(sheets):
         st.markdown(ui.kpi_cards([
             {"icon": "🎯", "tone": mr_tone, "label": "일치율", "value": f"{mr}%", "sub": "심의본 대비"},
             {"icon": "✏️", "tone": "amber" if rep["changed"] else "green",
-             "label": "변경 문장", "value": f'{rep["changed"]}건', "sub": "수정됨"},
+             "label": "변경", "value": f'{rep["changed"]}건', "sub": "수정됨"},
             {"icon": "🗑️", "tone": "red" if rep["deleted"] else "green",
-             "label": "삭제 문장", "value": f'{rep["deleted"]}건', "sub": "발행본서 빠짐"},
+             "label": "삭제", "value": f'{rep["deleted"]}건', "sub": "발행서 빠짐"},
             {"icon": "➕", "tone": "blue" if rep["added"] else "green",
-             "label": "추가 문장", "value": f'{rep["added"]}건', "sub": "발행본에 추가"},
-        ]), unsafe_allow_html=True)
-        st.markdown(ui.kpi_cards([
+             "label": "추가", "value": f'{rep["added"]}건', "sub": "발행에 추가"},
             {"icon": "📢", "tone": "green" if rep["notice_ok"] else "red",
-             "label": "고지문구", "value": "정상" if rep["notice_ok"] else "이상", "sub": "필수문구 유지"},
+             "label": "고지문구", "value": "정상" if rep["notice_ok"] else "이상", "sub": "필수문구"},
             {"icon": "#️⃣", "tone": "green" if rep["hashtag_ok"] else "red",
-             "label": "해시태그", "value": "정상" if rep["hashtag_ok"] else "이상", "sub": "필수 해시태그"},
+             "label": "해시태그", "value": "정상" if rep["hashtag_ok"] else "이상", "sub": "필수태그"},
             {"icon": "📑", "tone": "green" if rep["rider_ok"] else "red",
              "label": "특약명", "value": "정상" if rep["rider_ok"] else "이상", "sub": "특약명 유지"},
         ]), unsafe_allow_html=True)
