@@ -103,6 +103,21 @@ def section(title: str) -> str:
 _CHK_SYM = {"ok": "✓", "warn": "△", "fail": "✕", "pending": "–", "na": "—"}
 
 
+def deleted_html(deleted: list[str], limit: int = 15) -> str:
+    """워드에서 삭제 표시(취소선)된 문장을 취소선 스타일로 렌더 (검수 제외 안내)."""
+    if not deleted:
+        return ""
+    rows = "".join(
+        f'<div style="text-decoration:line-through;color:#c23636;font-size:12.5px;margin:3px 0">{d}</div>'
+        for d in deleted[:limit])
+    extra = (f'<div style="font-size:11px;color:#9aa4b4;margin-top:3px">…외 {len(deleted) - limit}군데</div>'
+             if len(deleted) > limit else "")
+    return (f'<div class="vh-wrap"><div style="background:#fff5f5;border:1px solid #f3d0d0;'
+            f'border-radius:10px;padding:10px 14px;margin:6px 0">'
+            f'<div style="font-size:12px;font-weight:700;color:#c23636;margin-bottom:5px">'
+            f'🗑️ 삭제 표시된 부분 {len(deleted)}군데 — 본문 검수에서 제외됨</div>{rows}{extra}</div></div>')
+
+
 def checklist_table(items: list[dict]) -> str:
     """items: [{name, status: ok|warn|fail, detail}] → 색상 체크리스트 표 HTML."""
     head = "".join(f"<th>{i['name']}</th>" for i in items)

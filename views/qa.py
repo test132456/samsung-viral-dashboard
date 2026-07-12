@@ -39,10 +39,9 @@ def _load_upload(up):
     elif len(secs) == 1:
         sec = secs[0]
     if sec is not None:
-        note = f"✅ **{sec['name'] or '원고'}** 자동 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else "")
+        st.caption(f"✅ **{sec['name'] or '원고'}** 자동 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else ""))
         if sec.get("deleted"):
-            note += f" · 🗑️ 삭제 표시(취소선) {len(sec['deleted'])}군데는 본문에서 제외함"
-        st.caption(note)
+            st.markdown(ui.deleted_html(sec["deleted"]), unsafe_allow_html=True)
         return sec["title"], sec["body"], sec["url"]
     return "", manuscript_parser.all_text(data), ""
 
