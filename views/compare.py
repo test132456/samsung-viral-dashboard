@@ -50,10 +50,7 @@ def render_compare(sheets):
 
     rep = st.session_state.get("compare_report")
     if rep:
-        mr = rep["match_rate"]
-        mr_tone = "green" if mr >= 95 else ("amber" if mr >= 80 else "red")
         st.markdown(ui.kpi_cards([
-            {"icon": "🎯", "tone": mr_tone, "label": "일치율", "value": f"{mr}%", "sub": "심의본 대비"},
             {"icon": "✏️", "tone": "amber" if rep["changed"] else "green",
              "label": "변경", "value": f'{rep["changed"]}건', "sub": "수정됨"},
             {"icon": "🗑️", "tone": "red" if rep["deleted"] else "green",
