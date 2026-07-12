@@ -16,3 +16,13 @@ def test_short_fragments_dropped(refs):
     published = "안녕하세요 여행자보험 안내입니다.\n.\n​\nㅁ"
     rep = compare_engine.compare(approved, published, refs)
     assert rep["added"] == 0 and rep["match_rate"] == 100.0
+
+
+def test_spacing_only_change_labeled(refs):
+    rep = compare_engine.compare("가입되어있어요.", "가입되어 있어요.", refs)
+    assert rep["changed_list"] and rep["changed_list"][0]["kind"] == "spacing"
+
+
+def test_content_change_labeled(refs):
+    rep = compare_engine.compare("국내 병원비를 보장합니다.", "해외 병원비를 보장합니다.", refs)
+    assert rep["changed_list"] and rep["changed_list"][0]["kind"] == "content"
