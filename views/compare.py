@@ -14,14 +14,19 @@ def _approved_from_upload(up) -> str:
     if not up.name.lower().endswith(".docx"):
         return data.decode("utf-8", "ignore")
     secs = manuscript_parser.parse_docx_sections(data)
+    sec = None
     if len(secs) >= 2:
         names = [s["name"] or f"섹션 {i + 1}" for i, s in enumerate(secs)]
         pick = st.selectbox("블로거 선택 (여러 명 원고)", names, key="cmp_blogger")
         sec = secs[names.index(pick)]
-        st.caption(f"✅ **{sec['name']}** 원고 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else ""))
+    elif len(secs) == 1:
+        sec = secs[0]
+    if sec is not None:
+        note = f"✅ **{sec['name'] or '원고'}** 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else "")
+        if sec.get("deleted"):
+            note += f" · 🗑️ 삭제 표시(취소선) {len(sec['deleted'])}군데는 제외함"
+        st.caption(note)
         return sec["body"]
-    if len(secs) == 1:
-        return secs[0]["body"]
     return manuscript_parser.all_text(data)
 
 

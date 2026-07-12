@@ -1,8 +1,9 @@
 """워드(.docx) 원고 파서.
 
 워드 중간의 구분 표(순번/이름/URL/제목 2열 표)를 기준으로 여러 명의 원고를 분리한다.
-parse_docx_sections(file_bytes) -> [{order, name, url, title, body}]
-all_text(file_bytes) -> str   (구분 표가 없을 때 전체 본문)
+취소선(빨간 줄) 텍스트는 '삭제 표시'로 보고 본문에서 제외하되 개수를 세어 알려준다.
+parse_docx_sections(file_bytes) -> [{order, name, url, title, body, deleted}]
+all_text(file_bytes) -> str   (구분 표가 없을 때 전체 본문, 취소선 제외)
 """
 from __future__ import annotations
 import io
@@ -12,6 +13,19 @@ from docx.text.paragraph import Paragraph
 from docx.oxml.ns import qn
 
 _LABELS = ("순번", "이름", "URL", "제목")
+
+
+def _para_parts(paragraph: Paragraph) -> tuple[str, str]:
+    """문단을 (보이는 텍스트, 취소선=삭제 텍스트)로 분리."""
+    visible, struck = [], []
+    for run in paragraph.runs:
+        if not run.text:
+            continue
+        if run.font.strike:
+            struck.append(run.text)
+        else:
+            visible.append(run.text)
+    return "".join(visible), "".join(struck)
 
 
 def _divider_info(tbl: Table) -> dict | None:
@@ -38,7 +52,7 @@ def parse_docx_sections(file_bytes: bytes) -> list[dict]:
             tbl = Table(child, doc)
             info = _divider_info(tbl)
             if info is not None:
-                current = {**info, "_body": []}
+                current = {**info, "_body": [], "_deleted": []}
                 sections.append(current)
                 continue
             if current is not None:  # 일반 표 → 본문에 셀 텍스트 포함
@@ -49,19 +63,26 @@ def parse_docx_sections(file_bytes: bytes) -> list[dict]:
                             current["_body"].append(t)
         elif child.tag == qn("w:p"):
             if current is not None:
-                t = Paragraph(child, doc).text.strip()
-                if t:
-                    current["_body"].append(t)
+                vis, struck = _para_parts(Paragraph(child, doc))
+                if vis.strip():
+                    current["_body"].append(vis.strip())
+                if struck.strip():
+                    current["_deleted"].append(struck.strip())
     out = []
     for s in sections:
         out.append({"order": s["order"], "name": s["name"], "url": s["url"],
-                    "title": s["title"], "body": "\n".join(s["_body"])})
+                    "title": s["title"], "body": "\n".join(s["_body"]), "deleted": s["_deleted"]})
     return out
 
 
 def all_text(file_bytes: bytes) -> str:
     doc = Document(io.BytesIO(file_bytes))
-    return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+    out = []
+    for p in doc.paragraphs:
+        vis, _ = _para_parts(p)
+        if vis.strip():
+            out.append(vis.strip())
+    return "\n".join(out)
 
 
 def read_pdf(file_bytes: bytes) -> str:

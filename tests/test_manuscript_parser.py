@@ -40,3 +40,22 @@ def test_no_divider_returns_empty_sections():
     b = io.BytesIO(); d.save(b)
     assert manuscript_parser.parse_docx_sections(b.getvalue()) == []
     assert "일반 원고" in manuscript_parser.all_text(b.getvalue())
+
+
+def test_strikethrough_excluded_and_counted():
+    d = Document()
+    t = d.add_table(rows=4, cols=2)
+    t.cell(0, 0).text, t.cell(0, 1).text = "순번", "(1)"
+    t.cell(1, 0).text, t.cell(1, 1).text = "이름", "여름"
+    t.cell(2, 0).text, t.cell(2, 1).text = "URL", "https://x"
+    t.cell(3, 0).text, t.cell(3, 1).text = "제목", "제목입니다"
+    p = d.add_paragraph()
+    p.add_run("정상 문장입니다 ")
+    dele = p.add_run("삭제된 부분입니다")
+    dele.font.strike = True
+    b = io.BytesIO(); d.save(b)
+    secs = manuscript_parser.parse_docx_sections(b.getvalue())
+    assert len(secs) == 1
+    assert "정상 문장입니다" in secs[0]["body"]
+    assert "삭제된 부분" not in secs[0]["body"]        # 취소선 제외
+    assert secs[0]["deleted"] and "삭제된 부분입니다" in secs[0]["deleted"][0]

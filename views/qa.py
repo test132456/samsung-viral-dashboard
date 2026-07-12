@@ -30,15 +30,20 @@ def _load_upload(up):
     if not up.name.lower().endswith(".docx"):
         return "", data.decode("utf-8", "ignore"), ""
     secs = manuscript_parser.parse_docx_sections(data)
+    sec = None
     if len(secs) >= 2:
         names = [s["name"] or f"섹션 {i + 1}" for i, s in enumerate(secs)]
         st.info(f"이 워드에 원고 **{len(secs)}건**이 있습니다. 검수할 블로거를 선택하세요.")
         pick = st.selectbox("블로거 선택", names, key="qa_blogger")
         sec = secs[names.index(pick)]
-        st.caption(f"✅ **{sec['name']}** 원고 자동 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else ""))
+    elif len(secs) == 1:
+        sec = secs[0]
+    if sec is not None:
+        note = f"✅ **{sec['name'] or '원고'}** 자동 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else "")
+        if sec.get("deleted"):
+            note += f" · 🗑️ 삭제 표시(취소선) {len(sec['deleted'])}군데는 본문에서 제외함"
+        st.caption(note)
         return sec["title"], sec["body"], sec["url"]
-    if len(secs) == 1:
-        return secs[0]["title"], secs[0]["body"], secs[0]["url"]
     return "", manuscript_parser.all_text(data), ""
 
 
