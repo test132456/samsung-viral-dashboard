@@ -26,3 +26,10 @@ def test_spacing_only_change_labeled(refs):
 def test_content_change_labeled(refs):
     rep = compare_engine.compare("국내 병원비를 보장합니다.", "해외 병원비를 보장합니다.", refs)
     assert rep["changed_list"] and rep["changed_list"][0]["kind"] == "content"
+
+
+def test_notice_detected_by_disclosure_marker(refs):
+    # 발행본에 실제 고지문구 마커(준법감시인확인필/광고료 등)가 있으면 정상
+    assert compare_engine.compare("본문", "준법감시인확인필 제26-1-4731호", refs)["notice_ok"] is True
+    assert compare_engine.compare("본문", "소정의 광고비(원고료)를 받아 작성", refs)["notice_ok"] is True
+    assert compare_engine.compare("본문", "그냥 여행 후기입니다", refs)["notice_ok"] is False

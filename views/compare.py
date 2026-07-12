@@ -63,15 +63,12 @@ def render_compare(sheets):
             {"icon": "➕", "tone": "blue" if rep["added"] else "green",
              "label": "추가", "value": f'{rep["added"]}건', "sub": "발행에 추가"},
             {"icon": "📢", "tone": "green" if rep["notice_ok"] else "red",
-             "label": "고지문구", "value": "정상" if rep["notice_ok"] else "이상", "sub": "필수문구"},
-            {"icon": "#️⃣", "tone": "green" if rep["hashtag_ok"] else "red",
-             "label": "해시태그", "value": "정상" if rep["hashtag_ok"] else "이상", "sub": "필수태그"},
+             "label": "고지문구", "value": "정상" if rep["notice_ok"] else "이상", "sub": "발행본 유지"},
             {"icon": "📑", "tone": "green" if rep["rider_ok"] else "red",
              "label": "특약명", "value": "정상" if rep["rider_ok"] else "이상", "sub": "특약명 유지"},
         ]), unsafe_allow_html=True)
-        st.caption("고지문구=발행본에 필수 고지문구(예: 유료광고 표기) 유지 · 해시태그=필수 해시태그 유지 · "
-                   "특약명=심의본 특약명이 발행본에 유지 · **'이상'=누락/불일치** "
-                   "(기준: 심의전 원고 검수의 ref 시트 값).")
+        st.caption("고지문구=발행본에 고지문구(예금자보호·준법감시인확인필·광고료 표기 등) 유지 · "
+                   "특약명=심의본 특약명이 발행본에 유지 · **'이상'=누락/불일치**")
 
         def _blk(color, bg, body):
             st.markdown(f'<div style="border-left:4px solid {color};background:{bg};padding:9px 13px;'

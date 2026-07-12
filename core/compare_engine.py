@@ -3,6 +3,12 @@ from __future__ import annotations
 import re
 import difflib
 
+# 발행본에 '고지문구'가 유지됐는지 판단하는 마커 (하나만 있어도 정상)
+DISCLOSURE_MARKERS = [
+    "준법감시인확인필", "예금자보호", "상품설명서 및 약관",
+    "광고비(원고료)", "광고비", "원고료", "유료광고",
+]
+
 
 def _normalize(text: str) -> str:
     """보이지 않는 특수문자(zero-width)·비표준 공백 제거, 공백 정규화."""
@@ -44,10 +50,8 @@ def compare(approved: str, published: str, refs: dict) -> dict:
             added_list += b[j1:j2]
 
     a_norm, b_norm = _normalize(approved), _normalize(published)
-    required = [r["phrase"] for r in refs.get("required", [])]
-    notice_ok = all(p in b_norm for p in required) if required else True
-    tags = [k["keyword"] for k in refs.get("keywords", []) if k.get("type") == "해시태그"]
-    hashtag_ok = (any(("#" + t) in b_norm for t in tags)) if tags else True
+    notice_ok = any(k in b_norm for k in DISCLOSURE_MARKERS)  # 발행본에 고지문구 마커 유지
+    hashtag_ok = True  # 해시태그는 네이버 크롤링으로 수집 불가 → 판정 제외
     riders = [r["official_name"] for r in refs.get("riders", [])]
     rider_ok = all((r in a_norm) <= (r in b_norm) for r in riders) if riders else True
 
