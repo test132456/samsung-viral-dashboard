@@ -54,7 +54,7 @@ def render_qa(sheets, claude=None):
     with col_opt:
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
-        terms_up = st.file_uploader("약관 파일 (docx/txt)", type=["docx", "txt"], key="qa_terms")
+        terms_up = st.file_uploader("약관 파일 (pdf/docx/txt)", type=["pdf", "docx", "txt"], key="qa_terms")
     with col_in:
         text = st.text_area("원고 텍스트", value=text_default, height=260)
 
@@ -78,10 +78,18 @@ def render_qa(sheets, claude=None):
     # 📜 약관 대조 (약관 파일 업로드 시)
     if terms_up is not None:
         tdata = terms_up.getvalue()
-        tt = (manuscript_parser.all_text(tdata) if terms_up.name.lower().endswith(".docx")
-              else tdata.decode("utf-8", "ignore"))
+        _name = terms_up.name.lower()
+        if _name.endswith(".pdf"):
+            tt = manuscript_parser.read_pdf(tdata)
+        elif _name.endswith(".docx"):
+            tt = manuscript_parser.all_text(tdata)
+        else:
+            tt = tdata.decode("utf-8", "ignore")
         official = terms.extract_riders(tt)
         st.markdown("##### 📜 약관 대조")
+        if _name.endswith(".pdf") and len(tt.strip()) < 50:
+            st.warning("PDF에서 텍스트가 거의 추출되지 않았습니다 — 스캔(이미지) PDF일 수 있어요. "
+                       "텍스트 PDF나 docx로 올리면 특약명이 인식됩니다.")
         if text.strip() and official:
             cov = terms.coverage(text, official)
             st.markdown(ui.kpi_cards([

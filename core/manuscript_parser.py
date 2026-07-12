@@ -62,3 +62,10 @@ def parse_docx_sections(file_bytes: bytes) -> list[dict]:
 def all_text(file_bytes: bytes) -> str:
     doc = Document(io.BytesIO(file_bytes))
     return "\n".join(p.text for p in doc.paragraphs if p.text.strip())
+
+
+def read_pdf(file_bytes: bytes) -> str:
+    """PDF 전체 텍스트 추출(pypdf). 스캔본(이미지 PDF)은 텍스트가 거의 안 나올 수 있음."""
+    from pypdf import PdfReader
+    reader = PdfReader(io.BytesIO(file_bytes))
+    return "\n".join((page.extract_text() or "") for page in reader.pages)
