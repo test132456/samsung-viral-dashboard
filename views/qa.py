@@ -177,14 +177,12 @@ def render_qa(sheets, claude=None):
             st.write("\n".join(f"- {r}" for r in ref_riders) if ref_riders else "인식된 특약명이 없습니다.")
 
     # --- 가이드 요청·참고 사항 점검 (항목별 ✓/✕ + 원고 근거) ---
-    image_count = (manuscript_parser.count_images(up.getvalue())
-                   if (up is not None and up.name.lower().endswith(".docx")) else None)
-    req_items = req_check.evaluate(title, text, image_count=image_count, is_official=is_official)
+    req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv)
     rq = req_check.summary(req_items)
     st.markdown("##### 📋 가이드 요청사항 점검 (원고 근거 표시)")
     st.caption(f"✓ 충족 {rq['ok']} · △ 확인 {rq['warn']} · ✕ 미충족 {rq['fail']} · 통과율 {rq['pass_rate']}%  "
                f"— 각 항목이 원고에 어떻게 반영됐는지 근거 문장을 함께 보여줍니다.")
-    for grp in ["요청·참고 사항", "필수 고지문구"]:
+    for grp in ["요청·참고 사항", "담보·혜택 (슬라이드3)", "필수 고지문구"]:
         gi = [it for it in req_items if it["group"] == grp]
         if gi:
             st.markdown(f"**{grp}**")
