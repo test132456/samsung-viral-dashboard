@@ -34,7 +34,7 @@ except Exception as e:
     st.stop()
 claude = get_claude()
 
-PAGES = ["🏠 홈", "📝 심의전 원고 검수", "🔀 원고↔발행물 비교", "🤖 AI 노출현황"]
+PAGES = ["📝 심의전 원고 검수", "🔀 원고↔발행물 비교", "🤖 AI 노출현황"]
 st.sidebar.markdown(
     '<div class="vh-brand"><div class="vh-logo">SF</div>'
     '<div><div class="vh-bt">삼성화재 바이럴</div><div class="vh-bs">운영 PM + QA</div></div></div>'
@@ -45,9 +45,7 @@ _cur = date.today().strftime("%Y-%m")
 _default = schema.MONTHS.index(_cur) if _cur in schema.MONTHS else schema.MONTHS.index(schema.DEFAULT_MONTH)
 month = st.sidebar.selectbox("운영월", schema.MONTHS, index=_default, key="op_month")
 
-if page == "🏠 홈":
-    home.render_home(sheets, month)
-elif page == "📝 심의전 원고 검수":
+if page == "📝 심의전 원고 검수":
     qa.render_qa(sheets, claude)
 elif page == "🔀 원고↔발행물 비교":
     compare.render_compare(sheets)
