@@ -26,7 +26,8 @@ def blank() -> list[dict]:
     return [{"name": n, "status": "pending", "detail": "검수 전"} for n in NAMES]
 
 
-def evaluate(title: str, body: str, refs: dict) -> list[dict]:
+def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> list[dict]:
+    """is_official=True(공식블로그)면 유료광고 문안은 '해당없음'(na) 처리."""
     title = (title or "").strip()
     body = body or ""
     keywords = [k["keyword"] for k in refs.get("keywords", []) if k.get("type") == "키워드"]
@@ -55,8 +56,10 @@ def evaluate(title: str, body: str, refs: dict) -> list[dict]:
     else:
         items.append({"name": f"제목 {TITLE_MAX}자 이내", "status": "fail", "detail": f"{n}자 (초과)"})
 
-    # ③ 유료광고 문안 (본문 첫 부분)
-    if "유료광고" in head:
+    # ③ 유료광고 문안 (본문 첫 부분) — 공식블로그는 해당없음
+    if is_official:
+        items.append({"name": "유료광고 문안(상단)", "status": "na", "detail": "공식블로그 · 해당없음"})
+    elif "유료광고" in head:
         items.append({"name": "유료광고 문안(상단)", "status": "ok", "detail": "본문 첫 부분에 표기"})
     elif "유료광고" in body:
         items.append({"name": "유료광고 문안(상단)", "status": "warn", "detail": "표기 있으나 상단 아님"})
@@ -87,9 +90,9 @@ def evaluate(title: str, body: str, refs: dict) -> list[dict]:
 
 
 def summary(items: list[dict]) -> dict:
-    """ok/warn/fail 개수 + 통과율(ok 기준)."""
+    """ok/warn/fail 개수 + 통과율(ok 기준). na(해당없음)는 분모에서 제외."""
     ok = sum(1 for i in items if i["status"] == "ok")
     warn = sum(1 for i in items if i["status"] == "warn")
     fail = sum(1 for i in items if i["status"] == "fail")
-    total = len(items) or 1
-    return {"ok": ok, "warn": warn, "fail": fail, "pass_rate": round(ok / total * 100)}
+    applicable = sum(1 for i in items if i["status"] != "na") or 1
+    return {"ok": ok, "warn": warn, "fail": fail, "pass_rate": round(ok / applicable * 100)}

@@ -52,6 +52,8 @@ def render_qa(sheets, claude=None):
 
     col_in, col_opt = st.columns([3, 1])
     with col_opt:
+        post_type = st.radio("원고 유형", ["체험단(배포형)", "공식블로그"], key="qa_type")
+        is_official = post_type == "공식블로그"
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
         terms_up = st.file_uploader("약관 파일 (pdf/docx/txt)", type=["pdf", "docx", "txt"], key="qa_terms")
@@ -61,9 +63,12 @@ def render_qa(sheets, claude=None):
 
     if st.button("검수 실행", type="primary", disabled=not text.strip(), key="qa_run"):
         refs = _refs_from_sheets(sheets)
+        if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
+            refs = {**refs, "required": [r for r in refs.get("required", [])
+                                         if "유료광고" not in str(r.get("phrase", ""))]}
         judge = (lambda t: claude.judge_expressions(t, "")) if (use_ai and claude) else None
         st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
-        st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs)
+        st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs, is_official=is_official)
 
     # 구조 체크리스트 — 검수 전에도 미리보기 표시
     st.markdown("##### 📋 구조 체크리스트")

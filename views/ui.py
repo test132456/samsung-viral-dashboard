@@ -40,9 +40,9 @@ GLOBAL_CSS = """
 .vh-chk td{padding:12px 6px;border:2px solid #fff;text-align:center;vertical-align:middle;}
 .vh-chk .sym{font-size:20px;font-weight:800;line-height:1;}
 .vh-chk .det{font-size:10px;margin-top:5px;line-height:1.25;}
-.chk-ok{background:#d8f3e3;} .chk-warn{background:#fff3cd;} .chk-fail{background:#fbdada;} .chk-pending{background:#f1f3f7;}
+.chk-ok{background:#d8f3e3;} .chk-warn{background:#fff3cd;} .chk-fail{background:#fbdada;} .chk-pending{background:#f1f3f7;} .chk-na{background:#eef1f6;}
 .chk-ok .sym,.chk-ok .det{color:#1d7a4c;} .chk-warn .sym,.chk-warn .det{color:#b9760a;} .chk-fail .sym,.chk-fail .det{color:#c23636;}
-.chk-pending .sym,.chk-pending .det{color:#9aa4b4;}
+.chk-pending .sym,.chk-pending .det{color:#9aa4b4;} .chk-na .sym,.chk-na .det{color:#9aa4b4;}
 /* ===== 사이드바 모던 내비 (A안) ===== */
 section[data-testid="stSidebar"] div[role="radiogroup"]{gap:4px;}
 section[data-testid="stSidebar"] div[role="radiogroup"] > label{
@@ -100,7 +100,7 @@ def section(title: str) -> str:
     return f'<div class="vh-wrap"><div class="vh-sec">{title}</div></div>'
 
 
-_CHK_SYM = {"ok": "✓", "warn": "△", "fail": "✕", "pending": "–"}
+_CHK_SYM = {"ok": "✓", "warn": "△", "fail": "✕", "pending": "–", "na": "—"}
 
 
 def checklist_table(items: list[dict]) -> str:

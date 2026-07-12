@@ -33,3 +33,15 @@ def test_summary_counts(refs):
     s = qa_checklist.summary(items)
     assert s["ok"] + s["warn"] + s["fail"] == len(items)
     assert 0 <= s["pass_rate"] <= 100
+
+
+def test_official_blog_marks_paid_ad_na(refs):
+    items = qa_checklist.evaluate("해외여행보험 안내", "유료광고 없는 본문입니다", refs, is_official=True)
+    by = {i["name"]: i["status"] for i in items}
+    assert by["유료광고 문안(상단)"] == "na"
+
+
+def test_experience_blog_checks_paid_ad(refs):
+    items = qa_checklist.evaluate("해외여행보험 안내", "유료광고 포함 본문입니다", refs, is_official=False)
+    by = {i["name"]: i["status"] for i in items}
+    assert by["유료광고 문안(상단)"] in ("ok", "warn")
