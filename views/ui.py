@@ -4,6 +4,7 @@ GLOBAL_CSS 는 app.py·demo_app.py 에서 1회 주입한다.
 kpi_cards()/pill()/section() 으로 카드·배지·섹션 헤더를 일관되게 렌더한다.
 """
 from __future__ import annotations
+import re
 
 GLOBAL_CSS = """
 <style>
@@ -129,8 +130,9 @@ def _chip(text: str, ok: bool) -> str:
             f'✕ {text}</span>')
 
 
-def banned_detail(banned: list[str], manuscript: str) -> str:
-    """가이드 표현불가문구 전체를 원고와 대조 — 사용되면 ✕(빨강), 없으면 ✓(초록)."""
+def banned_detail(banned: list[str], manuscript: str, page_of=None) -> str:
+    """가이드 표현불가문구 전체를 원고와 대조 — 사용되면 ✕(빨강), 없으면 ✓(초록).
+    page_of(term)→'쪽' 문자열을 넘기면 사용된 표현에 원고 쪽수를 붙인다."""
     if not banned:
         return ""
     ms = manuscript or ""
@@ -138,11 +140,11 @@ def banned_detail(banned: list[str], manuscript: str) -> str:
     color = "#c23636" if used else "#1d9d5f"
     head = (f'<div style="font-size:12px;color:#5b6678;margin:2px 0 6px">표현불가 {len(banned)}개 중 '
             f'<b style="color:{color}">{used}개 사용</b> · 나머지 미사용 (✓)</div>')
-    chips = "".join(_chip(b, b not in ms) for b in banned)
+    chips = "".join(_chip(b + (page_of(b) if (b in ms and page_of) else ""), b not in ms) for b in banned)
     return f'<div class="vh-wrap">{head}<div>{chips}</div></div>'
 
 
-def rider_detail(rv: dict, ref_total: int) -> str:
+def rider_detail(rv: dict, ref_total: int, page_of=None) -> str:
     """특약명 대조 결과 — 정확표기 ✓(초록), 오기 의심 ✕(빨강). 미언급은 개수만 안내."""
     ok = rv.get("ok", [])
     mism = rv.get("mismatch", [])
@@ -154,7 +156,10 @@ def rider_detail(rv: dict, ref_total: int) -> str:
             f'<b style="color:#1d9d5f">{len(ok)}개 정확</b>'
             + (f' · <b style="color:#c23636">{len(mism)}개 오기 의심</b>' if mism else "")
             + (f' · {len(unused)}개 미언급' if unused else "") + "</div>")
-    chips = "".join(_chip(n, True) for n in ok) + "".join(_chip(n + " (정식명 확인)", False) for n in mism)
+    chips = "".join(_chip(n, True) for n in ok)
+    for n in mism:
+        pagestr = page_of(re.split(r"[(（]", n)[0].strip()) if page_of else ""
+        chips += _chip(n + " (정식명 확인)" + pagestr, False)
     return f'<div class="vh-wrap">{head}<div>{chips}</div></div>'
 
 

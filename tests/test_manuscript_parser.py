@@ -59,3 +59,33 @@ def test_strikethrough_excluded_and_counted():
     assert "정상 문장입니다" in secs[0]["body"]
     assert "삭제된 부분" not in secs[0]["body"]        # 취소선 제외
     assert secs[0]["deleted"] and "삭제된 부분입니다" in secs[0]["deleted"][0]
+
+
+def _add_hyperlink(paragraph, url, text):
+    from docx.oxml.ns import qn
+    from docx.oxml import OxmlElement
+    rid = paragraph.part.relate_to(
+        url, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink",
+        is_external=True)
+    hl = OxmlElement("w:hyperlink"); hl.set(qn("r:id"), rid)
+    r = OxmlElement("w:r"); t = OxmlElement("w:t"); t.text = text
+    r.append(t); hl.append(r); paragraph._p.append(hl)
+
+
+def test_hyperlink_text_and_url_extracted():
+    d = Document()
+    p = d.add_paragraph("자세한 내용은 ")
+    _add_hyperlink(p, "https://direct.samsungfire.com/mall/PP030701_001.html", "여기")
+    b = io.BytesIO(); d.save(b)
+    txt = manuscript_parser.all_text(b.getvalue())
+    assert "여기" in txt                                                   # 표시 텍스트
+    assert "direct.samsungfire.com/mall/PP030701_001.html" in txt          # 실제 URL
+
+
+def test_find_page_returns_page():
+    d = Document()
+    d.add_paragraph("첫 페이지 내용")
+    b = io.BytesIO(); d.save(b)
+    pages = manuscript_parser.paragraph_pages(b.getvalue())
+    assert manuscript_parser.find_page(pages, "첫 페이지") == 1
+    assert manuscript_parser.find_page(pages, "없는문구") is None

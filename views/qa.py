@@ -116,6 +116,14 @@ def render_qa(sheets, claude=None):
         terms_confirm = sum(1 for r in ref_riders if terms._norm(r) in rawn)
     rs = report.get("required_status", [])
 
+    # 원고 쪽수(추정) — 잘못된 부분 위치 표시용 (워드 업로드 시)
+    pages = (manuscript_parser.paragraph_pages(up.getvalue())
+             if (up is not None and up.name.lower().endswith(".docx")) else None)
+
+    def pg(s):
+        p = manuscript_parser.find_page(pages, s) if pages else None
+        return f" · 원고 {p}쪽" if p else ""
+
     def _req(*keys):
         for it in rs:
             blob = str(it.get("type", "")) + str(it.get("phrase", ""))
@@ -156,25 +164,26 @@ def render_qa(sheets, claude=None):
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:
         st.markdown("###### 🚫 표현불가 문구 점검 (사용 ✕ / 미사용 ✓)")
-        st.markdown(ui.banned_detail(g["banned"], text), unsafe_allow_html=True)
+        st.markdown(ui.banned_detail(g["banned"], text, page_of=pg), unsafe_allow_html=True)
     if report["banned"]:
-        st.error("기본 사전 금지표현: " + ", ".join(f"'{b['term']}'" for b in report["banned"]))
+        st.error("기본 사전 금지표현: " + ", ".join(f"'{b['term']}'{pg(b['term'])}" for b in report["banned"]))
 
     # --- 특약명 상세 (가이드 정식 담보명 기준) ---
     st.markdown(f"###### 📑 특약명 대조 ({rider_src} 담보명 기준 · 정확 ✓ / 오기 의심 ✕)")
-    st.markdown(ui.rider_detail(rv, len(ref_riders)), unsafe_allow_html=True)
+    st.markdown(ui.rider_detail(rv, len(ref_riders), page_of=pg), unsafe_allow_html=True)
     if terms_confirm is not None:
         st.caption(f"📎 약관 교차확인: 정식 특약명 {len(ref_riders)}개 중 {terms_confirm}개가 업로드한 약관에서도 확인됨")
     with st.expander(f"{rider_src} 정식 특약명 {len(ref_riders)}개 보기"):
         st.write("\n".join(f"- {r}" for r in ref_riders))
 
     # --- 가이드 요청·참고 사항 점검 (항목별 ✓/✕ + 원고 근거) ---
-    req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv)
+    req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv, page_of=pg)
     rq = req_check.summary(req_items)
     st.markdown("##### 📋 가이드 요청사항 점검 (원고 근거 표시)")
+    _page_note = " · 잘못된 부분은 원고 쪽수(추정) 표시" if pages else ""
     st.caption(f"✓ 충족 {rq['ok']} · △ 확인 {rq['warn']} · ✕ 미충족 {rq['fail']} · 통과율 {rq['pass_rate']}%  "
-               f"— 각 항목이 원고에 어떻게 반영됐는지 근거 문장을 함께 보여줍니다.")
-    for grp in ["요청·참고 사항", "담보·혜택 (슬라이드3)", "필수 고지문구"]:
+               f"— 각 항목이 원고에 어떻게 반영됐는지 근거 문장을 함께 보여줍니다{_page_note}.")
+    for grp in ["요청·참고 사항", "담보·혜택", "필수 고지문구"]:
         gi = [it for it in req_items if it["group"] == grp]
         if gi:
             st.markdown(f"**{grp}**")

@@ -51,7 +51,7 @@ BENEFITS = {
 
 
 def evaluate(title: str, body: str, is_official: bool = False,
-             rider_result: dict | None = None) -> list[dict]:
+             rider_result: dict | None = None, page_of=None) -> list[dict]:
     title = (title or "").strip()
     body = body or ""
     head = body[:max(80, int(len(body) * _HEAD))]
@@ -59,6 +59,9 @@ def evaluate(title: str, body: str, is_official: bool = False,
     links = _URL_RE.findall(body)
     body_no_tags = _TAG_RE.sub("", body)  # 본문 키워드 카운트(해시태그 제외)
     items = []
+
+    def _pg(s):
+        return page_of(s) if page_of else ""
 
     def add(group, name, status, detail, evidence=""):
         items.append({"group": group, "name": name, "status": status,
@@ -78,7 +81,8 @@ def evaluate(title: str, body: str, is_official: bool = False,
     # 2) 타 보험사·타 보험명 언급 지양
     hits = [c for c in COMPETITORS if c in body]
     if hits:
-        add(G1, "타 보험사 언급 지양", "fail", f"타사 {len(hits)}건: " + ", ".join(hits), _snip(body, hits[0]))
+        add(G1, "타 보험사 언급 지양", "fail",
+            f"타사 {len(hits)}건: " + ", ".join(hits) + _pg(hits[0]), _snip(body, hits[0]))
     else:
         add(G1, "타 보험사 언급 지양", "ok", "타 보험사 언급 없음")
 
@@ -116,7 +120,7 @@ def evaluate(title: str, body: str, is_official: bool = False,
     # 5) 허용 상품 링크만 (삼성화재 다이렉트 외 상품 링크 불가)
     foreign = [l for l in links if ALLOWED_HOST not in l]
     if foreign:
-        add(G1, "허용 상품 링크만 사용", "fail", "삼성화재 외 링크 발견", _esc(foreign[0]))
+        add(G1, "허용 상품 링크만 사용", "fail", "삼성화재 외 링크 발견" + _pg(foreign[0]), _esc(foreign[0]))
     elif links:
         add(G1, "허용 상품 링크만 사용", "ok", "삼성화재 링크만 사용", _esc(links[0]))
     else:
@@ -151,13 +155,14 @@ def evaluate(title: str, body: str, is_official: bool = False,
     else:
         add(G2, "준법감시인확인필(하단)", "warn", "없음 (심의 완료 후 번호 기입 예정)")
 
-    G3 = "담보·혜택 (슬라이드3)"
+    G3 = "담보·혜택"
     # 9) 정확한 담보명 기재 (약관/가이드 정식 특약명 그대로) — 특약명 대조 결과 연동
     if not rider_result:
         add(G3, "정확한 담보명 기재", "na", "특약명 기준 미설정 (가이드/약관 업로드 시 대조)")
     elif rider_result.get("mismatch"):
         mm = rider_result["mismatch"]
-        add(G3, "정확한 담보명 기재", "fail", f"{len(mm)}건 오기 의심: " + ", ".join(mm[:2]),
+        add(G3, "정확한 담보명 기재", "fail",
+            f"{len(mm)}건 오기 의심: " + ", ".join(mm[:2]) + _pg(terms_head(mm[0])),
             _snip(body, terms_head(mm[0])))
     elif rider_result.get("ok"):
         add(G3, "정확한 담보명 기재", "ok", f"{len(rider_result['ok'])}개 정식명 그대로 표기",
@@ -176,7 +181,8 @@ def evaluate(title: str, body: str, is_official: bool = False,
         add(G3, "할인 중복적용 순서", "ok", "동반가입 > 재가입 > 중복적용 순", _snip(body, "중복"))
     elif i_d >= 0 and i_j >= 0:
         add(G3, "할인 중복적용 순서", "fail",
-            "순서 오류 — '동반가입할인 > 재가입할인 > 중복적용 가능' 순으로 기입", _snip(body, "중복"))
+            "순서 오류 — '동반가입할인 > 재가입할인 > 중복적용 가능' 순으로 기입" + _pg("중복적용"),
+            _snip(body, "중복"))
     else:
         add(G3, "할인 중복적용 순서", "warn", "동반가입·재가입 할인 언급 확인 필요", _snip(body, "중복"))
 

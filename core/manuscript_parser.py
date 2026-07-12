@@ -7,6 +7,7 @@ all_text(file_bytes) -> str   (구분 표가 없을 때 전체 본문, 취소선
 """
 from __future__ import annotations
 import io
+import re
 from docx import Document
 from docx.table import Table
 from docx.text.paragraph import Paragraph
@@ -15,17 +16,41 @@ from docx.oxml.ns import qn
 _LABELS = ("순번", "이름", "URL", "제목")
 
 
+def _run_struck(r) -> bool:
+    """런에 취소선(strike/dstrike)이 켜져 있는지."""
+    rpr = r.find(qn("w:rPr"))
+    if rpr is None:
+        return False
+    for tag in ("w:strike", "w:dstrike"):
+        el = rpr.find(qn(tag))
+        if el is not None and el.get(qn("w:val")) not in ("false", "0", "none"):
+            return True
+    return False
+
+
 def _para_parts(paragraph: Paragraph) -> tuple[str, str]:
-    """문단을 (보이는 텍스트, 취소선=삭제 텍스트)로 분리."""
+    """문단을 (보이는 텍스트, 취소선=삭제 텍스트)로 분리.
+    하이퍼링크 안의 텍스트와 실제 URL(관계 대상)까지 포함한다
+    (python-docx 의 paragraph.runs 는 하이퍼링크 런을 누락하므로 XML 직접 순회)."""
     visible, struck = [], []
-    for run in paragraph.runs:
-        if not run.text:
+    for r in paragraph._p.iter(qn("w:r")):
+        text = "".join(t.text or "" for t in r.findall(qn("w:t")))
+        if not text:
             continue
-        if run.font.strike:
-            struck.append(run.text)
-        else:
-            visible.append(run.text)
-    return "".join(visible), "".join(struck)
+        (struck if _run_struck(r) else visible).append(text)
+    vis = "".join(visible)
+    # 하이퍼링크 실제 URL 보강 (표시 텍스트가 URL이 아니어도 캡처)
+    for h in paragraph._p.iter(qn("w:hyperlink")):
+        rid = h.get(qn("r:id"))
+        if not rid:
+            continue
+        try:
+            url = paragraph.part.rels[rid].target_ref
+        except (KeyError, AttributeError):
+            url = None
+        if url and url not in vis:
+            vis = (vis + " " + url).strip()
+    return vis, "".join(struck)
 
 
 def _divider_info(tbl: Table) -> dict | None:
@@ -83,6 +108,34 @@ def all_text(file_bytes: bytes) -> str:
         if vis.strip():
             out.append(vis.strip())
     return "\n".join(out)
+
+
+def paragraph_pages(file_bytes: bytes) -> list[tuple[int, str]]:
+    """문단별 (추정 페이지, 텍스트). Word 의 lastRenderedPageBreak/페이지나눔 기준(추정).
+    Word 로 저장된 문서만 페이지 경계가 기록되며, 없으면 전부 1쪽으로 나온다."""
+    doc = Document(io.BytesIO(file_bytes))
+    out, page = [], 1
+    for para in doc.paragraphs:
+        vis, _ = _para_parts(para)
+        out.append((page, vis))
+        p = para._p
+        brk = len(p.findall(".//" + qn("w:lastRenderedPageBreak")))
+        brk += sum(1 for b in p.findall(".//" + qn("w:br")) if b.get(qn("w:type")) == "page")
+        page += brk
+    return out
+
+
+def find_page(pages: list[tuple[int, str]], needle: str) -> int | None:
+    """needle(공백 무시)이 처음 등장하는 문단의 추정 페이지."""
+    if not needle or not pages:
+        return None
+    key = re.sub(r"\s+", "", needle)
+    if not key:
+        return None
+    for page, text in pages:
+        if key in re.sub(r"\s+", "", text):
+            return page
+    return None
 
 
 def read_pdf(file_bytes: bytes) -> str:
