@@ -71,12 +71,39 @@ def render_compare(sheets):
             {"icon": "📑", "tone": "green" if rep["rider_ok"] else "red",
              "label": "특약명", "value": "정상" if rep["rider_ok"] else "이상", "sub": "특약명 유지"},
         ]), unsafe_allow_html=True)
-        for ch in rep["changed_list"]:
-            st.warning(f"변경: {ch['from']} → {ch['to']}")
-        for d in rep["deleted_list"]:
-            st.error(f"삭제됨: {d}")
-        for ad in rep["added_list"]:
-            st.success(f"추가됨: {ad}")
+        st.caption("고지문구=발행본에 필수 고지문구(예: 유료광고 표기) 유지 · 해시태그=필수 해시태그 유지 · "
+                   "특약명=심의본 특약명이 발행본에 유지 · **'이상'=누락/불일치** "
+                   "(기준: 심의전 원고 검수의 ref 시트 값).")
+
+        def _blk(color, bg, body):
+            st.markdown(f'<div style="border-left:4px solid {color};background:{bg};padding:9px 13px;'
+                        f'border-radius:6px;margin-bottom:7px;font-family:Pretendard,sans-serif">{body}</div>',
+                        unsafe_allow_html=True)
+
+        LIMIT = 15
+        changed = [c for c in rep["changed_list"] if c["from"].strip() or c["to"].strip()]
+        deleted = [d for d in rep["deleted_list"] if d.strip()]
+        added = [a for a in rep["added_list"] if a.strip()]
+        st.markdown("###### 문장 비교 결과")
+        if not (changed or deleted or added):
+            st.success("원고와 발행본이 문장 단위로 일치합니다.")
+        for ch in changed[:LIMIT]:
+            _blk("#f5a623", "#fff8ec",
+                 '<div style="font-size:11px;font-weight:700;color:#d98300">✏️ 변경</div>'
+                 f'<div style="font-size:12.5px;color:#8a6d3b;margin-top:3px">📄 원고: {ch["from"].strip() or "(빈 문장)"}</div>'
+                 f'<div style="font-size:12.5px;color:#16213d;margin-top:2px">📤 발행: {ch["to"].strip() or "(빈 문장)"}</div>')
+        for d in deleted[:LIMIT]:
+            _blk("#e23b3b", "#ffecec",
+                 '<div style="font-size:11px;font-weight:700;color:#e23b3b">🗑️ 원고에만 있음 (발행본서 빠짐)</div>'
+                 f'<div style="font-size:12.5px;color:#16213d;margin-top:2px">{d}</div>')
+        for a in added[:LIMIT]:
+            _blk("#2bb673", "#eafaf0",
+                 '<div style="font-size:11px;font-weight:700;color:#1d9d5f">➕ 발행본에만 있음 (원고엔 없음)</div>'
+                 f'<div style="font-size:12.5px;color:#16213d;margin-top:2px">{a}</div>')
+        _extra = max(0, len(changed) - LIMIT) + max(0, len(deleted) - LIMIT) + max(0, len(added) - LIMIT)
+        if _extra:
+            st.caption(f"… 외 {_extra}건 더 있음 (유형별 상위 {LIMIT}건만 표시)")
+
         if st.button("결과 시트에 저장", key="cmp_save"):
             sheets.append(schema.SHEET_COMPARE, {
                 "content_id": st.session_state.get("compare_cid", ""), "match_rate": rep["match_rate"],

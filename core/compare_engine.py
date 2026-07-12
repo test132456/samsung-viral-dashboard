@@ -4,9 +4,23 @@ import re
 import difflib
 
 
+def _normalize(text: str) -> str:
+    """보이지 않는 특수문자(zero-width)·비표준 공백 제거, 공백 정규화."""
+    text = (text or "").replace("\xa0", " ").replace("\r", "\n")
+    text = re.sub(r"[​‌‍﻿­]", "", text)  # zero-width류 제거
+    return text
+
+
 def _sentences(text: str) -> list[str]:
-    parts = re.split(r"[.\n!?]+", text)
-    return [s.strip() for s in parts if s.strip()]
+    """정규화 후 문장 분리. 공백은 하나로 접고, 2자 미만 조각은 버린다
+    (원고/발행본의 줄바꿈·공백 차이로 인한 허위 diff 방지)."""
+    text = _normalize(text)
+    out = []
+    for part in re.split(r"[.\n!?]+", text):
+        s = re.sub(r"\s+", " ", part).strip()
+        if len(s) >= 2:
+            out.append(s)
+    return out
 
 
 def compare(approved: str, published: str, refs: dict) -> dict:
@@ -27,12 +41,13 @@ def compare(approved: str, published: str, refs: dict) -> dict:
             added += (j2 - j1)
             added_list += b[j1:j2]
 
+    a_norm, b_norm = _normalize(approved), _normalize(published)
     required = [r["phrase"] for r in refs.get("required", [])]
-    notice_ok = all(p in published for p in required) if required else True
+    notice_ok = all(p in b_norm for p in required) if required else True
     tags = [k["keyword"] for k in refs.get("keywords", []) if k.get("type") == "해시태그"]
-    hashtag_ok = (any(("#" + t) in published for t in tags)) if tags else True
+    hashtag_ok = (any(("#" + t) in b_norm for t in tags)) if tags else True
     riders = [r["official_name"] for r in refs.get("riders", [])]
-    rider_ok = all((r in approved) <= (r in published) for r in riders) if riders else True
+    rider_ok = all((r in a_norm) <= (r in b_norm) for r in riders) if riders else True
 
     return {
         "match_rate": match_rate,
