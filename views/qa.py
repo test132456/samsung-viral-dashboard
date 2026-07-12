@@ -46,6 +46,32 @@ def _load_upload(up):
     return "", manuscript_parser.all_text(data), ""
 
 
+def _terms_text(up) -> str:
+    """약관 파일(pdf/docx/txt) → 텍스트."""
+    data = up.getvalue()
+    n = up.name.lower()
+    if n.endswith(".pdf"):
+        return manuscript_parser.read_pdf(data)
+    if n.endswith(".docx"):
+        return manuscript_parser.all_text(data)
+    return data.decode("utf-8", "ignore")
+
+
+def _resolve_riders(guide_riders: list[str], pdf_riders: list[str]) -> tuple[list[str], str]:
+    """특약명 기준: 가이드 우선. 가이드명이 약관(PDF)의 더 긴 정식명에 포함되면 그 정식명으로 보완."""
+    if guide_riders:
+        pn = {terms._norm(p): p for p in pdf_riders}
+        resolved = []
+        for r in guide_riders:
+            rn = terms._norm(r)
+            better = next((p for k, p in pn.items() if rn in k and len(k) > len(rn)), None)
+            resolved.append(better or r)
+        return resolved, "가이드"
+    if pdf_riders:
+        return pdf_riders, "약관"
+    return [], ""
+
+
 def render_qa(sheets, claude=None):
     st.subheader("📝 심의전 원고 검수")
     st.caption("발행 전 초안 원고를 심의 넣기 전에 점검 — 금지·과장 문구, 약관 특약명 대조, 구조 체크리스트")
@@ -85,91 +111,80 @@ def render_qa(sheets, claude=None):
     else:
         st.caption("제목·원고 입력 후 '검수 실행'을 누르면 위 5개 항목이 ✓ / △ / ✕ 로 채워집니다.")
 
-    # 📜 약관 대조 (약관 파일 업로드 시)
-    if terms_up is not None:
-        tdata = terms_up.getvalue()
-        _name = terms_up.name.lower()
-        if _name.endswith(".pdf"):
-            tt = manuscript_parser.read_pdf(tdata)
-        elif _name.endswith(".docx"):
-            tt = manuscript_parser.all_text(tdata)
-        else:
-            tt = tdata.decode("utf-8", "ignore")
-        official = terms.extract_riders(tt)
-        st.markdown("##### 📜 약관 대조")
-        if _name.endswith(".pdf") and len(tt.strip()) < 50:
-            st.warning("PDF에서 텍스트가 거의 추출되지 않았습니다 — 스캔(이미지) PDF일 수 있어요. "
-                       "텍스트 PDF나 docx로 올리면 특약명이 인식됩니다.")
-        if text.strip() and official:
-            cov = terms.coverage(text, official)
-            st.markdown(ui.kpi_cards([
-                {"icon": "📗", "tone": "blue", "label": "약관 특약명", "value": f'{cov["total"]}개', "sub": "업로드 약관"},
-                {"icon": "✅", "tone": "green" if cov["included_count"] else "gray",
-                 "label": "원고 정확 표기", "value": f'{cov["included_count"]}개', "sub": "약관과 일치"},
-            ]), unsafe_allow_html=True)
-            if cov["included"]:
-                st.success("원고에 약관 정식명 그대로 표기된 특약:\n" + "\n".join(f"- {o}" for o in cov["included"]))
-            else:
-                st.warning("원고에서 약관 정식 특약명과 정확히 일치하는 표기를 찾지 못했습니다 "
-                           "— 특약명 오기 가능(위 QA '특약명 오류'도 함께 확인).")
-        else:
-            st.caption(f"약관에서 특약명 {len(official)}개 추출됨. 원고 텍스트를 입력하면 대조합니다.")
-        with st.expander(f"약관에서 추출한 특약명 목록 ({len(official)}개)"):
-            st.write("\n".join(f"- {o}" for o in official) if official else "추출된 특약명이 없습니다.")
-
-    # 📗 작성 가이드 준수 체크 (가이드 PPT 업로드 시)
-    if guide_up is not None:
-        g = guide.parse_guide(guide.extract_text(guide_up.getvalue()))
-        st.markdown("##### 📗 작성 가이드 준수 체크")
-        if text.strip():
-            gc = guide.check(text, g)
-            st.markdown(ui.kpi_cards([
-                {"icon": "🚫", "tone": "red" if gc["banned_hits"] else "green",
-                 "label": "가이드 금지표현", "value": f'{len(gc["banned_hits"])}건', "sub": "발견"},
-                {"icon": "#️⃣", "tone": "green" if not gc["tags_missing"] else "amber",
-                 "label": "필수 해시태그", "value": f'{len(gc["tags_included"])}/{gc["tags_total"]}', "sub": "포함"},
-                {"icon": "🔑", "tone": "green" if gc["keyword_ok"] else "amber",
-                 "label": "'해외여행보험' 키워드", "value": f'{gc["keyword_count"]}개', "sub": "가이드 3~5개"},
-            ]), unsafe_allow_html=True)
-            if gc["banned_hits"]:
-                st.error("가이드 금지표현: " + ", ".join(f"'{b}'" for b in gc["banned_hits"]))
-            if gc["tags_missing"]:
-                st.warning("누락된 필수 해시태그: " + " ".join(gc["tags_missing"]))
-            if not gc["keyword_ok"]:
-                st.info(f"'해외여행보험' 키워드 {gc['keyword_count']}개 — 가이드 권장 3~5개")
-            if not gc["banned_hits"] and not gc["tags_missing"] and gc["keyword_ok"]:
-                st.success("가이드 주요 항목(금지표현·해시태그·키워드) 준수 확인")
-        else:
-            st.caption(f"가이드에서 금지표현 {len(g['banned'])}개·해시태그 {len(g['hashtags'])}개 추출. 원고를 입력하면 대조합니다.")
-        with st.expander("가이드에서 추출한 기준 보기"):
-            st.write("**금지표현**: " + (", ".join(g["banned"]) or "-"))
-            st.write("**필수 해시태그**: " + (" ".join(g["hashtags"]) or "-"))
-
+    # ===== 통합 검수 결과 (검수 실행 후) =====
     report = st.session_state.get("qa_report")
-    if report:
-        score = report["qa_score"]
-        score_tone = "green" if score >= 85 else ("amber" if score >= 70 else "red")
-        st.markdown(ui.kpi_cards([
-            {"icon": "🎯", "tone": score_tone, "label": "QA 점수", "value": score, "sub": "100점 만점"},
-            {"icon": "🚫", "tone": "red" if report["banned_count"] else "green",
-             "label": "금지표현", "value": f'{report["banned_count"]}건', "sub": "사전 매칭"},
-            {"icon": "📑", "tone": "red" if report["rider_error_count"] else "green",
-             "label": "특약명 오류", "value": f'{report["rider_error_count"]}건', "sub": "약관 대조"},
-            {"icon": "📋", "tone": "red" if report["missing_phrase"] else "green",
-             "label": "필수문구 누락", "value": "있음" if report["missing_phrase"] else "없음", "sub": "고지·유료광고"},
-            {"icon": "💰", "tone": "amber" if report["price_found"] else "green",
-             "label": "보험료 기재", "value": "발견" if report["price_found"] else "없음", "sub": "금액 탐지"},
-        ]), unsafe_allow_html=True)
+    if not report:
+        return
 
-        if report["banned"]:
-            st.error("금지표현: " + ", ".join(f"'{b['term']}'" for b in report["banned"]))
-        for r in report["riders"]:
-            st.warning(f"특약명: ❌ '{r['found']}' → ✅ {r['official_name']}")
-        rs = report.get("required_status", [])
-        if rs:
-            st.markdown("###### 📋 필수문구 상세 (있는 것 ✓ / 빠진 것 ✕)")
-            st.markdown(ui.required_detail(rs), unsafe_allow_html=True)
-        if report["missing_keywords"]:
-            st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
-        for f in report["ai_findings"]:
-            st.warning(f"AI: {f.get('snippet','')} — {f.get('reason','')} → {f.get('suggestion','')}")
+    # 가이드/약관 실시간 반영 (업로드된 파일 기준)
+    g = guide.parse_guide(guide.extract_text(guide_up.getvalue())) if guide_up is not None else None
+    gc = guide.check(text, g) if g else None
+    pdf_riders = terms.extract_riders(_terms_text(terms_up)) if terms_up is not None else []
+    ref_riders, rider_src = _resolve_riders(g.get("riders", []) if g else [], pdf_riders)
+    rv = terms.verify_usage(text, ref_riders) if ref_riders else None
+    rs = report.get("required_status", [])
+
+    def _req(*keys):
+        for it in rs:
+            blob = str(it.get("type", "")) + str(it.get("phrase", ""))
+            if any(k in blob for k in keys):
+                return it
+        return None
+    gojib, paid = _req("고지"), _req("유료광고", "원고료", "광고비")
+    kwc = gc["keyword_count"] if gc else text.count("해외여행보험")
+
+    st.markdown("##### ✅ 검수 결과 요약")
+    cards = [
+        # --- 1줄: 규제·약관 ---
+        ({"icon": "🚫", "tone": "red" if gc["banned_hits"] else "green", "label": "표현불가 문구",
+          "value": f'{len(gc["banned_hits"])}건', "sub": "가이드 기준 사용"} if gc else
+         {"icon": "🚫", "tone": "gray", "label": "표현불가 문구", "value": "–", "sub": "가이드 미업로드"}),
+        {"icon": "⛔", "tone": "red" if report["banned_count"] else "green", "label": "금지표현(사전)",
+         "value": f'{report["banned_count"]}건', "sub": "기본 사전"},
+        ({"icon": "📑", "tone": "red" if rv["mismatch_count"] else "green", "label": "특약명",
+          "value": (f'{rv["mismatch_count"]}건 오기' if rv["mismatch_count"] else "정상"), "sub": f"{rider_src} 기준"}
+         if rv else {"icon": "📑", "tone": "gray", "label": "특약명", "value": "–", "sub": "가이드/약관 미업로드"}),
+        ({"icon": "📢", "tone": "green" if gojib["present"] else "red", "label": "고지문구",
+          "value": "포함" if gojib["present"] else "누락", "sub": "법정 고지"} if gojib else
+         {"icon": "📢", "tone": "gray", "label": "고지문구", "value": "–", "sub": "기준 없음"}),
+        # --- 2줄: 표기·형식 ---
+        ({"icon": "💸", "tone": "gray", "label": "유료광고 표기", "value": "해당없음", "sub": "공식블로그"} if is_official else
+         ({"icon": "💸", "tone": "green" if paid["present"] else "red", "label": "유료광고 표기",
+           "value": "포함" if paid["present"] else "누락", "sub": "체험단 필수"} if paid else
+          {"icon": "💸", "tone": "gray", "label": "유료광고 표기", "value": "–", "sub": "기준 없음"})),
+        ({"icon": "#️⃣", "tone": "green" if not gc["tags_missing"] else "amber", "label": "필수 해시태그",
+          "value": f'{len(gc["tags_included"])}/{gc["tags_total"]}', "sub": "포함"} if gc else
+         {"icon": "#️⃣", "tone": "gray", "label": "필수 해시태그", "value": "–", "sub": "가이드 미업로드"}),
+        {"icon": "🔑", "tone": "green" if 3 <= kwc <= 5 else "amber", "label": "'해외여행보험' 키워드",
+         "value": f'{kwc}개', "sub": "가이드 3~5개"},
+        {"icon": "💰", "tone": "amber" if report["price_found"] else "green", "label": "보험료 기재",
+         "value": "발견" if report["price_found"] else "없음", "sub": "금액 탐지"},
+    ]
+    st.markdown(ui.kpi_cards(cards, per_row=4), unsafe_allow_html=True)
+
+    # --- 표현불가 문구 전체 대조 ---
+    if g and g["banned"]:
+        st.markdown("###### 🚫 표현불가 문구 점검 (사용 ✕ / 미사용 ✓)")
+        st.markdown(ui.banned_detail(g["banned"], text), unsafe_allow_html=True)
+    if report["banned"]:
+        st.error("기본 사전 금지표현: " + ", ".join(f"'{b['term']}'" for b in report["banned"]))
+
+    # --- 특약명 상세 ---
+    if rv is not None:
+        st.markdown(f"###### 📑 특약명 대조 ({rider_src} 기준 · 정확 ✓ / 오기 의심 ✕)")
+        st.markdown(ui.rider_detail(rv, len(ref_riders)), unsafe_allow_html=True)
+        with st.expander(f"{rider_src}에서 인식한 특약명 {len(ref_riders)}개 보기"):
+            st.write("\n".join(f"- {r}" for r in ref_riders) if ref_riders else "인식된 특약명이 없습니다.")
+
+    # --- 필수문구(고지·유료광고) 상세 ---
+    if rs:
+        st.markdown("###### 📋 필수문구 상세 (있는 것 ✓ / 빠진 것 ✕)")
+        st.markdown(ui.required_detail(rs), unsafe_allow_html=True)
+
+    # --- 해시태그 / 키워드 / AI ---
+    if gc and gc["tags_missing"]:
+        st.warning("누락된 필수 해시태그: " + " ".join(gc["tags_missing"]))
+    if report["missing_keywords"]:
+        st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
+    for f in report["ai_findings"]:
+        st.warning(f"AI: {f.get('snippet','')} — {f.get('reason','')} → {f.get('suggestion','')}")

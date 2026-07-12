@@ -24,6 +24,39 @@ def extract_riders(terms_text: str) -> list[str]:
     return out
 
 
+def _norm(s: str) -> str:
+    return re.sub(r"\s+", "", s or "")
+
+
+def _head(name: str) -> str:
+    """특약명 핵심 머리말(괄호 제거 후 앞 2어절) — 오기 탐지용."""
+    core = re.sub(r"[()（）]", " ", name).split("특약")[0].strip()
+    toks = core.split()
+    return "".join(toks[:2])
+
+
+def verify_usage(manuscript: str, ref_names: list[str]) -> dict:
+    """원고가 참조하는 특약을 정식명(가이드/약관 기준)과 대조.
+    ok=정확 표기 / mismatch=핵심어는 있으나 정식명 불일치(오기 의심) / unused=원고 미언급.
+    형제 특약(같은 머리말)이 정확히 쓰였으면 그 머리말은 오기로 잡지 않는다."""
+    ms = manuscript or ""
+    msn = _norm(ms)
+    names = [n for n in ref_names if n]
+    present_heads = {_head(n) for n in names if n in ms or _norm(n) in msn}
+    ok, mismatch, unused = [], [], []
+    for n in names:
+        if n in ms or _norm(n) in msn:
+            ok.append(n)
+            continue
+        h = _head(n)
+        if h and h in msn and h not in present_heads:
+            mismatch.append(n)
+        else:
+            unused.append(n)
+    return {"ok": ok, "mismatch": mismatch, "unused": unused,
+            "ok_count": len(ok), "mismatch_count": len(mismatch)}
+
+
 def coverage(manuscript: str, official: list[str]) -> dict:
     """약관 정식 특약명이 원고에 정확히(그대로) 들어있는지 대조.
     included=원고에 정확히 표기된 약관 특약명 / missing=원고에 없는 약관 특약명."""

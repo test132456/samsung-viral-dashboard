@@ -78,9 +78,10 @@ TONE = {
 _PILL_KIND = {"prog": "p-prog", "wait": "p-wait", "late": "p-late", "done": "p-done", "mute": "p-mute"}
 
 
-def kpi_cards(cards: list[dict]) -> str:
-    """cards: [{icon, tone, label, value, sub}]. tone 은 TONE 키."""
-    n = max(1, len(cards))
+def kpi_cards(cards: list[dict], per_row: int | None = None) -> str:
+    """cards: [{icon, tone, label, value, sub}]. tone 은 TONE 키.
+    per_row 지정 시 한 줄에 그 개수만큼 두고 나머지는 다음 줄로 자동 줄바꿈."""
+    n = per_row or max(1, len(cards))
     out = [f'<div class="vh-wrap"><div class="vh-kpis" style="grid-template-columns:repeat({n},1fr)">']
     for c in cards:
         bg, fg = TONE.get(c.get("tone", "gray"), TONE["gray"])
@@ -116,6 +117,45 @@ def deleted_html(deleted: list[str], limit: int = 15) -> str:
             f'border-radius:10px;padding:10px 14px;margin:6px 0">'
             f'<div style="font-size:12px;font-weight:700;color:#c23636;margin-bottom:5px">'
             f'🗑️ 삭제 표시된 부분 {len(deleted)}군데 — 본문 검수에서 제외됨</div>{rows}{extra}</div></div>')
+
+
+def _chip(text: str, ok: bool) -> str:
+    if ok:
+        return ('<span style="display:inline-block;margin:3px;padding:4px 10px;border-radius:20px;'
+                'background:#eef7f0;color:#3f8f63;font-size:11.5px;border:1px solid #d8ecdf">'
+                f'✓ {text}</span>')
+    return ('<span style="display:inline-block;margin:3px;padding:4px 10px;border-radius:20px;'
+            'background:#ffecec;color:#c23636;font-size:11.5px;font-weight:700;border:1px solid #f3caca">'
+            f'✕ {text}</span>')
+
+
+def banned_detail(banned: list[str], manuscript: str) -> str:
+    """가이드 표현불가문구 전체를 원고와 대조 — 사용되면 ✕(빨강), 없으면 ✓(초록)."""
+    if not banned:
+        return ""
+    ms = manuscript or ""
+    used = sum(1 for b in banned if b in ms)
+    color = "#c23636" if used else "#1d9d5f"
+    head = (f'<div style="font-size:12px;color:#5b6678;margin:2px 0 6px">표현불가 {len(banned)}개 중 '
+            f'<b style="color:{color}">{used}개 사용</b> · 나머지 미사용 (✓)</div>')
+    chips = "".join(_chip(b, b not in ms) for b in banned)
+    return f'<div class="vh-wrap">{head}<div>{chips}</div></div>'
+
+
+def rider_detail(rv: dict, ref_total: int) -> str:
+    """특약명 대조 결과 — 정확표기 ✓(초록), 오기 의심 ✕(빨강). 미언급은 개수만 안내."""
+    ok = rv.get("ok", [])
+    mism = rv.get("mismatch", [])
+    unused = rv.get("unused", [])
+    if not (ok or mism):
+        note = f'<div style="font-size:12px;color:#8a94a6;margin:2px 0">기준 특약명 {ref_total}개 — 원고에서 언급된 특약이 없습니다.</div>'
+        return f'<div class="vh-wrap">{note}</div>'
+    head = (f'<div style="font-size:12px;color:#5b6678;margin:2px 0 6px">기준 특약명 {ref_total}개 중 '
+            f'<b style="color:#1d9d5f">{len(ok)}개 정확</b>'
+            + (f' · <b style="color:#c23636">{len(mism)}개 오기 의심</b>' if mism else "")
+            + (f' · {len(unused)}개 미언급' if unused else "") + "</div>")
+    chips = "".join(_chip(n, True) for n in ok) + "".join(_chip(n + " (정식명 확인)", False) for n in mism)
+    return f'<div class="vh-wrap">{head}<div>{chips}</div></div>'
 
 
 def required_detail(items: list[dict]) -> str:

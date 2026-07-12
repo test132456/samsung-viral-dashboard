@@ -35,3 +35,25 @@ def test_check_against_manuscript():
     assert "#해외여행보험" in res["tags_missing"]     # 원고에 이 태그 없음
     assert "#삼성화재다이렉트" in res["tags_included"]
     assert res["keyword_count"] == 3 and res["keyword_ok"] is True
+
+
+def test_extract_riders_from_dambo_section():
+    from core import guide
+    text = ("[메인 담보명 및 소구 포인트] ★약관에서 확인되는 정확한 특약명\n"
+            "특약명\n"
+            "항공기 지연 결항 보상(지수형)(국내 출국) 특약\n"
+            "수하물 지연(6시간 이상)·손실 추가비용 특약\n"
+            "[표현 불가 문구]\n"
+            "출국 항공기 지연 손해 특약 제외 | 보장 아님 |\n")
+    g = guide.parse_guide(text)
+    assert "항공기 지연 결항 보상(지수형)(국내 출국) 특약" in g["riders"]
+    assert "수하물 지연(6시간 이상)·손실 추가비용 특약" in g["riders"]
+    # 헤더/안내문/표현불가표의 특약은 제외
+    assert not any("확인" in r for r in g["riders"])
+    assert "출국 항공기 지연 손해 특약 제외" not in g["riders"]
+    assert "특약명" not in g["riders"]
+
+
+def test_extract_riders_none_without_section():
+    from core import guide
+    assert guide.parse_guide("담보명 헤더 없는 일반 텍스트 특약 어쩌구")["riders"] == []

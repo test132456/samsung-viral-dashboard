@@ -28,6 +28,36 @@ def extract_text(pptx_bytes: bytes) -> str:
     return "\n".join(lines)
 
 
+_RIDER_SECTION_RE = re.compile(r"\[[^\]]*담보명[^\]]*\]")
+
+
+def _extract_riders(text: str) -> list[str]:
+    """가이드 '메인 담보명/특약명' 표에서 '...특약' 정식명 추출.
+    담보명 섹션 헤더를 못 찾으면 [] (약관 PDF로 대체)."""
+    m = _RIDER_SECTION_RE.search(text or "")
+    if not m:
+        return []
+    section = text[m.end():]
+    section = re.split(r"\n\s*\[", section, maxsplit=1)[0]  # 다음 [대괄호 섹션] 직전까지
+    _NOISE = ("확인", "정확", "소구", "담보명", "약관에서", "포인트", "메인")
+    out, seen = [], set()
+    for chunk in re.split(r"[\n\r|]+", section):
+        line = chunk.strip().strip("★").strip()
+        if "특약" not in line:
+            continue
+        mm = re.search(r"(.{3,60}?특약)(?!명)", line)  # '특약명'(헤더/안내문)은 제외
+        if not mm:
+            continue
+        name = re.sub(r"^\s*(?:제?\s*\d+\s*[.)관조항호]|[·•\-*★])\s*", "", mm.group(1)).strip()
+        if not (4 <= len(name) <= 60) or name in seen or name in ("특약", "메인 특약"):
+            continue
+        if any(w in name for w in _NOISE):  # 안내문/헤더 문구 제거
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
+
+
 def parse_guide(text: str) -> dict:
     text = text or ""
     # 필수 해시태그
@@ -52,7 +82,7 @@ def parse_guide(text: str) -> dict:
                 c = c.strip().strip("~").strip()
                 if 2 <= len(c) <= 25 and c not in _HEADER_TERMS and c not in banned:
                     banned.append(c)
-    return {"hashtags": hashtags, "banned": banned}
+    return {"hashtags": hashtags, "banned": banned, "riders": _extract_riders(text)}
 
 
 def check(manuscript: str, guide: dict) -> dict:
