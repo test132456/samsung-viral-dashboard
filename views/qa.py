@@ -1,8 +1,8 @@
-"""QA검수 탭 (1순위)."""
+"""QA검수 탭 (1순위) — 워드 다중 원고 분리 + 이름 필터 + QA + 구조 체크리스트."""
 import streamlit as st
 import docx, io
 from datetime import date
-from core import qa_engine, schema, qa_checklist
+from core import qa_engine, schema, qa_checklist, manuscript_parser
 from views import ui
 
 
@@ -22,24 +22,44 @@ def _read_docx(file) -> str:
     return "\n".join(p.text for p in d.paragraphs)
 
 
+def _load_upload(up):
+    """업로드 파일 → (title_default, text_default, url). docx는 다중 원고 분리+블로거 선택."""
+    if up is None:
+        return "", "", ""
+    data = up.getvalue()
+    if not up.name.lower().endswith(".docx"):
+        return "", data.decode("utf-8", "ignore"), ""
+    secs = manuscript_parser.parse_docx_sections(data)
+    if len(secs) >= 2:
+        names = [s["name"] or f"섹션 {i + 1}" for i, s in enumerate(secs)]
+        st.info(f"이 워드에 원고 **{len(secs)}건**이 있습니다. 검수할 블로거를 선택하세요.")
+        pick = st.selectbox("블로거 선택", names, key="qa_blogger")
+        sec = secs[names.index(pick)]
+        st.caption(f"✅ **{sec['name']}** 원고 자동 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else ""))
+        return sec["title"], sec["body"], sec["url"]
+    if len(secs) == 1:
+        return secs[0]["title"], secs[0]["body"], secs[0]["url"]
+    return "", manuscript_parser.all_text(data), ""
+
+
 def render_qa(sheets, claude=None):
     st.subheader("🔍 원고 QA 자동검수")
+
+    up = st.file_uploader("원고 업로드 (.docx/.txt) — 여러 명 원고가 든 워드도 자동 분리",
+                          type=["docx", "txt"], key="qa_uploader")
+    title_default, text_default, _url = _load_upload(up)
+
     col_in, col_opt = st.columns([3, 1])
     with col_opt:
         use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         content_id = st.text_input("content_id (선택)", key="qa_cid")
-        title = st.text_input("제목", key="qa_title", placeholder="원고 제목 (체크리스트용)")
+        title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
     with col_in:
-        up = st.file_uploader("원고 업로드 (.docx/.txt)", type=["docx", "txt"], key="qa_uploader")
-        text = ""
-        if up:
-            text = _read_docx(up) if up.name.endswith(".docx") else up.read().decode("utf-8", "ignore")
-        text = st.text_area("원고 텍스트", value=text, height=260)
+        text = st.text_area("원고 텍스트", value=text_default, height=260)
 
     if st.button("검수 실행", type="primary", disabled=not text.strip(), key="qa_run"):
         refs = _refs_from_sheets(sheets)
-        guide = ""  # 심의가이드 텍스트는 ref 시트 note 합본 또는 secrets로 주입 가능
-        judge = (lambda t: claude.judge_expressions(t, guide)) if (use_ai and claude) else None
+        judge = (lambda t: claude.judge_expressions(t, "")) if (use_ai and claude) else None
         st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
         st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs)
 

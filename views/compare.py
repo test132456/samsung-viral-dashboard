@@ -1,9 +1,28 @@
 """심의본비교 탭 (2순위)."""
 import streamlit as st
 from datetime import date
-from core import compare_engine, fetcher, schema
+from core import compare_engine, fetcher, schema, manuscript_parser
 from views import ui
-from views.qa import _refs_from_sheets, _read_docx
+from views.qa import _refs_from_sheets
+
+
+def _approved_from_upload(up) -> str:
+    """심의본 업로드 → 텍스트. docx는 다중 원고 분리 + 블로거 선택."""
+    if up is None:
+        return ""
+    data = up.getvalue()
+    if not up.name.lower().endswith(".docx"):
+        return data.decode("utf-8", "ignore")
+    secs = manuscript_parser.parse_docx_sections(data)
+    if len(secs) >= 2:
+        names = [s["name"] or f"섹션 {i + 1}" for i, s in enumerate(secs)]
+        pick = st.selectbox("블로거 선택 (여러 명 원고)", names, key="cmp_blogger")
+        sec = secs[names.index(pick)]
+        st.caption(f"✅ **{sec['name']}** 원고 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else ""))
+        return sec["body"]
+    if len(secs) == 1:
+        return secs[0]["body"]
+    return manuscript_parser.all_text(data)
 
 
 def render_compare(sheets):
@@ -11,9 +30,9 @@ def render_compare(sheets):
     content_id = st.text_input("content_id (선택)", key="cmp_cid")
     col_l, col_r = st.columns(2)
     with col_l:
-        up = st.file_uploader("심의 완료본 (.docx/.txt)", type=["docx", "txt"], key="appr")
-        approved = _read_docx(up) if (up and up.name.endswith(".docx")) else (up.read().decode("utf-8", "ignore") if up else "")
-        approved = st.text_area("심의 완료본 텍스트", value=approved, height=240)
+        up = st.file_uploader("심의 완료본 (.docx/.txt) — 여러 명 원고 자동 분리",
+                              type=["docx", "txt"], key="appr")
+        approved = st.text_area("심의 완료본 텍스트", value=_approved_from_upload(up), height=240)
     with col_r:
         url = st.text_input("발행 URL", key="cmp_url")
         published = st.session_state.get("pub_text", "")
