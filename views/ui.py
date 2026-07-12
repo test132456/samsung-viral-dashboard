@@ -10,6 +10,11 @@ GLOBAL_CSS = """
 <style>
 .vh-wrap{font-family:'Pretendard',-apple-system,'Segoe UI',sans-serif;font-variant-numeric:tabular-nums;}
 .vh-sec{font-size:14px;font-weight:800;color:#16213d;margin:6px 0 12px;letter-spacing:-.3px;}
+/* ===== A안: 그라데이션 페이지 헤더 ===== */
+.vh-phead{background:linear-gradient(135deg,#0c2f8f,#2f7bea);border-radius:14px;padding:17px 22px;
+  margin:2px 0 18px;box-shadow:0 10px 26px rgba(18,50,130,.24);}
+.vh-phead h2{font-size:18px;font-weight:800;color:#fff;letter-spacing:-.4px;margin:0;line-height:1.25;}
+.vh-phead p{font-size:12px;color:#d3e3ff;margin:5px 0 0;font-weight:600;}
 .vh-kpis{display:grid;gap:14px;margin:4px 0 20px;}
 .vh-k{background:#fff;border-radius:14px;padding:16px 16px 15px;border:1px solid #eef2f8;
       box-shadow:0 6px 18px rgba(37,99,235,.07);transition:transform .2s,box-shadow .2s;}
@@ -98,10 +103,14 @@ def kpi_cards(cards: list[dict], per_row: int | None = None) -> str:
     n = per_row or max(1, len(cards))
     out = [f'<div class="vh-wrap"><div class="vh-kpis" style="grid-template-columns:repeat({n},1fr)">']
     for c in cards:
-        bg, fg = TONE.get(c.get("tone", "gray"), TONE["gray"])
+        tone = c.get("tone", "gray")
+        bg, fg = TONE.get(tone, TONE["gray"])
+        num_color = fg if tone in ("red", "amber") else "#16213d"  # 경고/위험만 숫자 강조
         out.append(
-            f'<div class="vh-k"><div class="vh-ic" style="background:{bg};color:{fg}">{c.get("icon","")}</div>'
-            f'<div class="vh-lab">{c.get("label","")}</div><div class="vh-num">{c.get("value","")}</div>'
+            f'<div class="vh-k" style="border-top:4px solid {fg}">'
+            f'<div class="vh-ic" style="background:{bg};color:{fg}">{c.get("icon","")}</div>'
+            f'<div class="vh-lab">{c.get("label","")}</div>'
+            f'<div class="vh-num" style="color:{num_color}">{c.get("value","")}</div>'
             f'<div class="vh-sub">{c.get("sub","")}</div></div>')
     out.append("</div></div>")
     return "".join(out)
@@ -113,6 +122,12 @@ def pill(text: str, kind: str = "wait") -> str:
 
 def section(title: str) -> str:
     return f'<div class="vh-wrap"><div class="vh-sec">{title}</div></div>'
+
+
+def page_header(title: str, subtitle: str = "") -> str:
+    """A안 그라데이션 페이지 헤더."""
+    sub = f"<p>{subtitle}</p>" if subtitle else ""
+    return f'<div class="vh-wrap"><div class="vh-phead"><h2>{title}</h2>{sub}</div></div>'
 
 
 def loading_overlay(msg: str = "🍪 굽는 중…") -> str:

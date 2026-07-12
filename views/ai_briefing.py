@@ -9,7 +9,9 @@ _TONES = ["green", "amber", "violet", "red", "gray"]
 
 
 def render_ai_briefing(sheets, month: str):
-    st.subheader("🤖 AI 노출 현황")
+    st.markdown(ui.page_header("🤖 AI 노출 현황",
+                               "ChatGPT·Gemini 인용률과 네이버 AI브리핑 노출을 일별로 추적"),
+                unsafe_allow_html=True)
     sub_cite, sub_brief = st.tabs(["🔎 AI 인용률", "📊 AI브리핑 노출"])
     with sub_cite:
         _render_citations(sheets, month)

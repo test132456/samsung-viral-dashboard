@@ -70,8 +70,9 @@ def _doc_pages(data: bytes):
 
 
 def render_qa(sheets, claude=None):
-    st.subheader("📝 심의전 원고 검수")
-    st.caption("발행 전 초안 원고를 심의 넣기 전에 점검 — 금지·과장 문구, 약관 특약명 대조, 구조 체크리스트")
+    st.markdown(ui.page_header("📝 심의전 원고 검수",
+                               "발행 전 초안 원고를 심의 넣기 전에 점검 — 금지·과장 문구, 약관 특약명 대조, 작성 플로우"),
+                unsafe_allow_html=True)
 
     up = st.file_uploader("초안 원고 업로드 (.docx/.txt) — 여러 명 원고가 든 워드도 자동 분리",
                           type=["docx", "txt"], key="qa_uploader")
