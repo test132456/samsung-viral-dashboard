@@ -91,10 +91,17 @@ section[data-testid="stSidebar"] div[role="radiogroup"] > label:has(input:checke
 /* ===== 로딩 오버레이 (화면 중앙 · 쿠키 굽기) ===== */
 .vh-ovl{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;gap:16px;
   align-items:center;justify-content:center;background:rgba(247,249,253,.86);backdrop-filter:blur(3px);}
-.vh-ovl-cookie{font-size:68px;line-height:1;animation:vhbake 1.15s ease-in-out infinite;
-  filter:drop-shadow(0 9px 15px rgba(180,120,40,.30));}
-@keyframes vhbake{0%,100%{transform:translateY(0) rotate(-7deg) scale(1);}
-  50%{transform:translateY(-16px) rotate(7deg) scale(1.06);}}
+.vh-ovl-cake{position:relative;width:84px;height:84px;}
+.vh-ovl-cake span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:64px;line-height:1;opacity:0;filter:drop-shadow(0 9px 15px rgba(180,120,40,.28));
+  animation:vhsweet 3.6s ease-in-out infinite;}
+.vh-ovl-cake span:nth-child(2){animation-delay:.9s;}
+.vh-ovl-cake span:nth-child(3){animation-delay:1.8s;}
+.vh-ovl-cake span:nth-child(4){animation-delay:2.7s;}
+@keyframes vhsweet{
+  0%,4%{opacity:0;transform:translateY(13px) scale(.78) rotate(-9deg);}
+  10%,20%{opacity:1;transform:translateY(-6px) scale(1.06) rotate(7deg);}
+  26%,100%{opacity:0;transform:translateY(-15px) scale(.85) rotate(0);}}
 .vh-ovl-msg{font-size:15px;font-weight:800;color:#2c3e74;letter-spacing:-.2px;}
 .vh-ovl-dots{display:flex;gap:7px;}
 .vh-ovl-dots i{width:9px;height:9px;border-radius:50%;background:#2f7bea;display:inline-block;animation:vhdot .9s ease-in-out infinite;}
@@ -163,10 +170,12 @@ def group_label(text: str) -> str:
     return f'<div class="vh-wrap"><div class="vh-glabel">{text}</div></div>'
 
 
-def loading_overlay(msg: str = "🍪 굽는 중…") -> str:
-    """화면 중앙 로딩 오버레이 HTML. st.empty() 자리표시자에 넣고 끝나면 empty()."""
+def loading_overlay(msg: str = "굽는 중…") -> str:
+    """화면 중앙 로딩 오버레이 HTML — 디저트(쿠키·케이크·컵케이크·도넛)가 번갈아 등장.
+    st.empty() 자리표시자에 넣고 끝나면 empty()."""
+    sweets = "".join(f"<span>{e}</span>" for e in ("🍪", "🍰", "🧁", "🍩"))
     return ('<div class="vh-wrap"><div class="vh-ovl">'
-            '<div class="vh-ovl-cookie">🍪</div>'
+            f'<div class="vh-ovl-cake">{sweets}</div>'
             '<div class="vh-ovl-dots"><i></i><i></i><i></i></div>'
             f'<div class="vh-ovl-msg">{msg}</div></div></div>')
 

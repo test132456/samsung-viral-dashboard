@@ -91,7 +91,7 @@ def render_qa(sheets, claude=None):
 
     if st.button("검수 실행", type="primary", disabled=not text.strip(), key="qa_run"):
         _ov = st.empty()
-        _ov.markdown(ui.loading_overlay("🍪 원고 굽는 중… 심의 문구·특약명 살펴보는 중"), unsafe_allow_html=True)
+        _ov.markdown(ui.loading_overlay("원고 굽는 중… 심의 문구·특약명 살펴보는 중"), unsafe_allow_html=True)
         try:
             refs = _refs_from_sheets(sheets)
             if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
@@ -121,7 +121,7 @@ def render_qa(sheets, claude=None):
 
     # ── 결과 데이터 계산 (파일 파싱 등 무거운 작업은 캐시 + 중앙 오버레이로 감쌈) ──
     _ov2 = st.empty()
-    _ov2.markdown(ui.loading_overlay("🍪 원고 살펴보는 중… 가이드·약관 대조"), unsafe_allow_html=True)
+    _ov2.markdown(ui.loading_overlay("원고 살펴보는 중… 가이드·약관 대조"), unsafe_allow_html=True)
     try:
         g = _guide_parsed(guide_up.getvalue()) if guide_up is not None else None
         gc = guide.check(text, g) if g else None
