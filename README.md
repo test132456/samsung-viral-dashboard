@@ -46,38 +46,37 @@ client_x509_cert_url = "https://www.googleapis.com/robot/v1/metadata/x509/your-s
 
 ## 배포 (Streamlit Community Cloud · 무료)
 
-> 실제 운영 버전(`app.py`) 배포 순서. GitHub 로그인/권한 승인은 직접 진행합니다.
+`app.py`는 **시크릿이 없으면 내장 기준데이터로 단독 동작**한다(업로드 기반 검수·비교). 즉 구글 설정 없이 바로 배포된다.
 
-**0. 사전 준비 (한 번만)**
-- 구글시트를 서비스계정 이메일(`...@....iam.gserviceaccount.com`)과 **공유(편집자)** — 안 하면 "구글시트 연결 실패"가 뜹니다.
-- 서비스계정 JSON, 시트 ID, (선택) Claude 키 준비.
-
-**1. 배포**
-1. [share.streamlit.io](https://share.streamlit.io) 접속 → **Continue with GitHub** 로 로그인/권한 승인.
+**기본 배포 (시트 없이 · 시크릿 불필요)**
+1. [share.streamlit.io](https://share.streamlit.io) → **Continue with GitHub** 로그인.
 2. **Create app → Deploy a public app from GitHub**.
 3. 값 입력:
    - Repository: `test132456/samsung-viral-dashboard`
    - Branch: `master`
-   - **Main file path: `app.py`**  ← 데모로 띄우려면 `demo_app.py`
-4. **Advanced settings**:
-   - **Python version: 3.11 이상** (권장 3.12)
-   - **Secrets**: 아래 형식 전체를 붙여넣기 (로컬 `secrets.toml`과 동일)
-     ```toml
-     SPREADSHEET_ID = "..."
-     ANTHROPIC_API_KEY = "sk-ant-..."   # 없으면 이 줄 생략 (AI 2차검수만 비활성)
+   - **Main file path: `app.py`**
+4. (Advanced settings) **Python version: 3.12** 권장.
+5. **Deploy** → 1~2분 후 `https://<앱이름>.streamlit.app` 발급. 이후 `master` push 시 자동 재배포.
 
-     [gcp_service_account]
-     type = "service_account"
-     project_id = "..."
-     private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
-     client_email = "...@....iam.gserviceaccount.com"
-     # (나머지 JSON 필드 그대로)
-     ```
-5. **Deploy** → 1~2분 후 `https://<앱이름>.streamlit.app` URL 발급.
+> 이 상태에서 심의전 원고 검수·원고↔발행물 비교는 완전히 동작한다. AI 노출현황 탭은 샘플로 표시된다.
 
-**갱신**: 이후 `master`에 push하면 자동 재배포됩니다.
+**(선택) 나중에 구글시트로 기준·AI노출 기록 관리**
+- `scripts/make_secrets.py` 로 서비스계정 JSON → `secrets.toml` 생성 후, Advanced settings → **Secrets** 에 그 내용을 붙여넣는다.
+- 서비스계정 이메일(`...@....iam.gserviceaccount.com`)을 대상 구글시트에 **편집자로 공유**한다.
+- 시크릿이 감지되면 자동으로 시트 연결 모드로 전환된다. (Claude 키 `ANTHROPIC_API_KEY` 를 넣으면 AI 2차검수 활성)
 
-> ⚠️ Secrets는 절대 레포에 커밋하지 마세요(`.streamlit/secrets.toml`은 `.gitignore` 처리됨). Cloud의 Secrets 입력창에만 넣습니다.
+```toml
+SPREADSHEET_ID = "..."
+ANTHROPIC_API_KEY = "sk-ant-..."   # 없으면 생략
+
+[gcp_service_account]
+type = "service_account"
+private_key = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+client_email = "...@....iam.gserviceaccount.com"
+# (나머지 JSON 필드 그대로)
+```
+
+> ⚠️ Secrets는 레포에 커밋하지 말 것(`.streamlit/secrets.toml` 은 `.gitignore` 처리됨). Cloud Secrets 입력창에만 넣는다.
 
 ---
 

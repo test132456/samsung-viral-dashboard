@@ -1,4 +1,8 @@
-"""삼성화재 바이럴 운영 대시보드 진입점."""
+"""삼성화재 바이럴 운영 대시보드 진입점.
+
+시크릿(gcp_service_account + SPREADSHEET_ID)이 있으면 구글시트에 연결하고,
+없으면 내장 기준데이터로 시트 없이 단독 동작한다(업로드 기반 검수·비교).
+"""
 import streamlit as st
 from datetime import date
 from core.sheets import Sheets
@@ -11,28 +15,41 @@ st.set_page_config(page_title="삼성화재 바이럴 운영 대시보드", layo
 
 @st.cache_resource
 def get_sheets():
-    info = dict(st.secrets["gcp_service_account"])
-    s = Sheets(info, st.secrets["SPREADSHEET_ID"])
-    s.ensure_tabs()
-    return s
+    """시크릿 있으면 구글시트, 없으면 내장 기준데이터(MockSheets)로 폴백.
+    반환: (sheets, connected: bool)."""
+    try:
+        sa = dict(st.secrets["gcp_service_account"])
+        sid = st.secrets["SPREADSHEET_ID"]
+    except Exception:
+        sa = sid = None
+    if sa and sid:
+        try:
+            s = Sheets(sa, sid)
+            s.ensure_tabs()
+            return s, True
+        except Exception as e:
+            st.warning(f"구글시트 연결 실패 — 내장 기준으로 동작합니다. ({e})")
+    from core.mock_sheets import MockSheets
+    from demo_data import SEED
+    return MockSheets(dict(SEED)), False
 
 
 @st.cache_resource
 def get_claude():
-    key = st.secrets.get("ANTHROPIC_API_KEY")
+    try:
+        key = st.secrets.get("ANTHROPIC_API_KEY")
+    except Exception:
+        key = None
     return ClaudeClient(key) if key else None
 
 
 st.markdown(ui.GLOBAL_CSS, unsafe_allow_html=True)
 st.title("삼성화재 해외여행보험 바이럴 운영 대시보드")
-st.caption("바이럴 운영 PM + QA 관리 시스템")
 
-try:
-    sheets = get_sheets()
-except Exception as e:
-    st.error(f"구글시트 연결 실패: {e}")
-    st.stop()
+sheets, connected = get_sheets()
 claude = get_claude()
+st.caption("바이럴 운영 PM + QA 관리 시스템"
+           + ("" if connected else "  ·  시트 미연결(내장 기준으로 동작 · AI 노출현황은 샘플)"))
 
 PAGES = ["📝 심의전 원고 검수", "🔀 원고↔발행물 비교", "🤖 AI 노출현황"]
 st.sidebar.markdown(
