@@ -4,6 +4,8 @@ GLOBAL_CSS 는 app.py·demo_app.py 에서 1회 주입한다.
 kpi_cards()/pill()/section() 으로 카드·배지·섹션 헤더를 일관되게 렌더한다.
 """
 from __future__ import annotations
+import difflib
+import html
 import re
 
 GLOBAL_CSS = """
@@ -168,6 +170,26 @@ def subhead(icon: str, title: str, tone: str = "blue", stat: str = "") -> str:
 
 def group_label(text: str) -> str:
     return f'<div class="vh-wrap"><div class="vh-glabel">{text}</div></div>'
+
+
+def diff_pair(old: str, new: str) -> tuple[str, str]:
+    """문자 단위 비교 → (원고 HTML, 발행 HTML). 달라진 글자만 강조.
+    원고: 원본 글자를 연빨강 취소선, 발행: 바뀐 글자를 빨강 하이라이트."""
+    old, new = old or "", new or ""
+    sm = difflib.SequenceMatcher(None, old, new, autojunk=False)
+    a, b = [], []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        ta, tb = html.escape(old[i1:i2]), html.escape(new[j1:j2])
+        if tag == "equal":
+            a.append(ta)
+            b.append(tb)
+            continue
+        if ta:
+            a.append(f'<span style="color:#c23636;text-decoration:line-through">{ta}</span>')
+        if tb:
+            b.append(f'<span style="background:#ffd6d6;color:#b3231f;font-weight:800;'
+                     f'border-radius:3px;padding:0 2px">{tb}</span>')
+    return "".join(a), "".join(b)
 
 
 def loading_overlay(msg: str = "굽는 중…") -> str:

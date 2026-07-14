@@ -95,16 +95,18 @@ def render_compare(sheets):
         if not (changed or deleted or added):
             st.success("원고와 발행본이 문장 단위로 일치합니다.")
         for ch in changed[:LIMIT]:
+            _a, _b = ui.diff_pair(ch["from"].strip(), ch["to"].strip())
+            _a, _b = (_a or "(빈 문장)"), (_b or "(빈 문장)")
             if ch.get("kind") == "spacing":
                 _blk("#b3bccb", "#f4f6fa",
                      '<div style="font-size:11px;font-weight:700;color:#7a8597">🔤 띄어쓰기 차이 (내용 동일·참고용)</div>'
-                     f'<div style="font-size:12.5px;color:#5b6678;margin-top:3px">📄 원고: {ch["from"].strip()}</div>'
-                     f'<div style="font-size:12.5px;color:#5b6678;margin-top:2px">📤 발행: {ch["to"].strip()}</div>')
+                     f'<div style="font-size:12.5px;color:#5b6678;margin-top:3px">📄 원고: {_a}</div>'
+                     f'<div style="font-size:12.5px;color:#5b6678;margin-top:2px">📤 발행: {_b}</div>')
             else:
                 _blk("#f5a623", "#fff8ec",
-                     '<div style="font-size:11px;font-weight:700;color:#d98300">✏️ 변경</div>'
-                     f'<div style="font-size:12.5px;color:#8a6d3b;margin-top:3px">📄 원고: {ch["from"].strip() or "(빈 문장)"}</div>'
-                     f'<div style="font-size:12.5px;color:#16213d;margin-top:2px">📤 발행: {ch["to"].strip() or "(빈 문장)"}</div>')
+                     '<div style="font-size:11px;font-weight:700;color:#d98300">✏️ 변경 (바뀐 글자 빨강)</div>'
+                     f'<div style="font-size:12.5px;color:#8a6d3b;margin-top:3px">📄 원고: {_a}</div>'
+                     f'<div style="font-size:12.5px;color:#16213d;margin-top:2px">📤 발행: {_b}</div>')
         for d in deleted[:LIMIT]:
             _blk("#e23b3b", "#ffecec",
                  '<div style="font-size:11px;font-weight:700;color:#e23b3b">🗑️ 원고에만 있음 (발행본서 빠짐)</div>'
