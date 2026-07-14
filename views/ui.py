@@ -172,9 +172,15 @@ def group_label(text: str) -> str:
     return f'<div class="vh-wrap"><div class="vh-glabel">{text}</div></div>'
 
 
+def _mark_ws(seg: str) -> str:
+    """바뀐 구간 안의 공백을 눈에 보이는 기호(␣)로 치환 — 띄어쓰기 차이가 보이게."""
+    return seg.replace(" ", "␣").replace("\t", "␣")
+
+
 def diff_pair(old: str, new: str) -> tuple[str, str]:
     """문자 단위 비교 → (원고 HTML, 발행 HTML). 달라진 글자만 강조.
-    원고: 원본 글자를 연빨강 취소선, 발행: 바뀐 글자를 빨강 하이라이트."""
+    원고: 원본 글자를 연빨강 취소선, 발행: 바뀐 글자를 빨강 하이라이트.
+    바뀐 부분이 공백이면 ␣ 기호로 보이게 표시한다."""
     old, new = old or "", new or ""
     sm = difflib.SequenceMatcher(None, old, new, autojunk=False)
     a, b = [], []
@@ -185,10 +191,11 @@ def diff_pair(old: str, new: str) -> tuple[str, str]:
             b.append(tb)
             continue
         if ta:
-            a.append(f'<span style="color:#c23636;text-decoration:line-through">{ta}</span>')
+            a.append(f'<span style="background:#ffe3e3;color:#c23636;text-decoration:line-through;'
+                     f'border-radius:3px;padding:0 2px">{_mark_ws(ta)}</span>')
         if tb:
             b.append(f'<span style="background:#ffd6d6;color:#b3231f;font-weight:800;'
-                     f'border-radius:3px;padding:0 2px">{tb}</span>')
+                     f'border-radius:3px;padding:0 2px">{_mark_ws(tb)}</span>')
     return "".join(a), "".join(b)
 
 

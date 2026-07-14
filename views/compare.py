@@ -92,7 +92,8 @@ def render_compare(sheets):
         changed.sort(key=lambda c: c.get("kind") == "spacing")  # 내용변경 먼저, 띄어쓰기 나중
         _sp = sum(1 for c in changed if c.get("kind") == "spacing")
         st.markdown("###### 문장 비교 결과")
-        st.caption(f"🔤 표시는 **띄어쓰기만 다른 항목(내용 동일·참고용)**입니다." + (f" · 띄어쓰기 차이 {_sp}건" if _sp else ""))
+        st.caption("🔤 표시는 **띄어쓰기만 다른 항목(내용 동일·참고용)**입니다. 바뀐 공백은 **␣** 기호로 표시돼요."
+                   + (f" · 띄어쓰기 차이 {_sp}건" if _sp else ""))
         if not (changed or deleted or added):
             st.success("원고와 발행본이 문장 단위로 일치합니다.")
         for ch in changed[:LIMIT]:
