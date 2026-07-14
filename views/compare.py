@@ -210,8 +210,8 @@ def render_compare(sheets):
     # ===== 이미지 비교 (순서대로 나란히) =====
     st.divider()
     st.markdown(ui.subhead("🖼️", "이미지 비교 (순서대로)", "blue"), unsafe_allow_html=True)
-    st.caption("심의 원고(워드)와 발행글 이미지를 같은 순번끼리 나란히 보여줍니다. "
-               "순서가 동일하다는 전제로 위치별로 대조하세요. (워드 원고 업로드 + 발행 URL 필요)")
+    st.caption("심의 원고(워드)와 발행글 사진을 같은 순번끼리 나란히 보여줍니다. "
+               "발행글의 스티커·이모티콘은 자동 제외해 순번이 밀리지 않습니다. (워드 원고 업로드 + 발행 URL 필요)")
     _img_ready = up is not None and up.name.lower().endswith(".docx") and bool(url.strip())
     if st.button("이미지 비교", key="cmp_img", disabled=not _img_ready):
         _ovi = st.empty()

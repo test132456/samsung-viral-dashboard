@@ -65,15 +65,37 @@ def _normalize_naver_url(url: str) -> str:
     return url
 
 
+_STICKER_HOSTS = ("storep-phinf.pstatic.net", "ogqstore", "sticker")
+
+
+def _cls_has_sticker(value) -> bool:
+    if not value:
+        return False
+    parts = value if isinstance(value, list) else [value]
+    return any("sticker" in p for p in parts)
+
+
+def _is_sticker_img(img) -> bool:
+    """네이버 스티커/이모티콘 이미지인지 — 사진(콘텐츠)과 구분해 제외하기 위함."""
+    if _cls_has_sticker(img.get("class")):
+        return True
+    if img.find_parent(class_=_cls_has_sticker):   # se-sticker 컴포넌트 안
+        return True
+    src = (img.get("data-lazy-src") or img.get("src") or "")
+    return any(h in src for h in _STICKER_HOSTS)
+
+
 def extract_image_urls(html: str) -> list[str]:
-    """네이버 본문(.se-main-container)의 콘텐츠 이미지 URL을 등장 순서대로 추출(순수).
-    lazy 로딩 대비 data-lazy-src/src 순으로 보고, UI 아이콘/스티커는 최대한 제외."""
+    """네이버 본문(.se-main-container)의 콘텐츠 사진 URL을 등장 순서대로 추출(순수).
+    스티커/이모티콘·UI 아이콘은 제외해, 심의 원고 사진과 순서가 어긋나지 않게 한다."""
     soup = BeautifulSoup(html, "html.parser")
     container = soup.select_one(".se-main-container") or soup.body
     if container is None:
         return []
     urls, seen = [], set()
     for img in container.select("img"):
+        if _is_sticker_img(img):   # 스티커/이모티콘 제외
+            continue
         src = (img.get("data-lazy-src") or img.get("src") or img.get("data-src") or "").strip()
         if not src.startswith("http"):
             continue

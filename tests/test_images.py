@@ -72,3 +72,17 @@ def test_images_attributed_per_blogger_section():
     assert len(by["제아"]["images"]) == 1
     assert len(by["여름"]["images"]) == 2
     assert all(x[:8] == b"\x89PNG\r\n\x1a\n" for x in by["여름"]["images"])
+
+
+def test_extract_image_urls_excludes_stickers():
+    from core import fetcher
+    html = """
+    <div class="se-main-container">
+      <div class="se-component se-image"><img src="https://postfiles.pstatic.net/photo1.jpg?type=w966"></div>
+      <div class="se-component se-sticker"><img src="https://storep-phinf.pstatic.net/ogq_x.png"></div>
+      <div class="se-component se-image"><img src="https://postfiles.pstatic.net/photo2.jpg"></div>
+      <img class="se-sticker-image" src="https://postfiles.pstatic.net/looks-like-photo-but-sticker.png">
+    </div>"""
+    urls = fetcher.extract_image_urls(html)
+    assert urls == ["https://postfiles.pstatic.net/photo1.jpg?type=w966",
+                    "https://postfiles.pstatic.net/photo2.jpg"]   # 사진 2장만, 스티커 제외
