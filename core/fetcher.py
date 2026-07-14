@@ -2,11 +2,47 @@
 from __future__ import annotations
 import re
 import requests
+from urllib.parse import urlparse, parse_qsl
 from bs4 import BeautifulSoup
+
+_UA = "Mozilla/5.0"
+# 단축/리다이렉트 링크 도메인 (원본 URL 추적 대상)
+_SHORTENERS = ("tinyurl.com", "bit.ly", "naver.me", "me2.do", "buly.kr",
+               "abr.ge", "vo.la", "han.gl", "url.kr", "zrr.kr")
 
 
 class FetchError(Exception):
     pass
+
+
+def is_shortener(url: str) -> bool:
+    return any(s in (url or "") for s in _SHORTENERS)
+
+
+def parse_link_params(url: str) -> dict:
+    """URL 쿼리 파라미터 파싱(순수). 반환:
+    {params:[(k,v)...], key:마지막(또는 utm_term) 키, term:추적코드 값}.
+    utm_term 이 있으면 그 값을, 없으면 맨 끝 파라미터 값을 term 으로 준다."""
+    q = parse_qsl(urlparse(url or "").query, keep_blank_values=True)
+    d = dict(q)
+    if "utm_term" in d and d["utm_term"]:
+        key, term = "utm_term", d["utm_term"]
+    elif q:
+        key, term = q[-1][0], q[-1][1]
+    else:
+        key, term = None, None
+    return {"params": q, "key": key, "term": term}
+
+
+def resolve_redirects(url: str, timeout: int = 8) -> str:
+    """단축/리다이렉트 링크의 최종 URL 반환(네트워크)."""
+    try:
+        r = requests.head(url, allow_redirects=True, timeout=timeout, headers={"User-Agent": _UA})
+        if r.status_code >= 400 or r.url == url:
+            r = requests.get(url, allow_redirects=True, timeout=timeout, headers={"User-Agent": _UA})
+        return r.url or url
+    except requests.RequestException as e:
+        raise FetchError(f"링크 확인 실패: {e}") from e
 
 
 def extract_text(html: str) -> str:

@@ -1,4 +1,5 @@
 """심의본비교 탭 (2순위)."""
+import re
 import streamlit as st
 from datetime import date
 from core import compare_engine, fetcher, schema, manuscript_parser
@@ -118,3 +119,43 @@ def render_compare(sheets):
         _extra = max(0, len(changed) - LIMIT) + max(0, len(deleted) - LIMIT) + max(0, len(added) - LIMIT)
         if _extra:
             st.caption(f"… 외 {_extra}건 더 있음 (유형별 상위 {LIMIT}건만 표시)")
+
+    # ===== 발행 링크 트래킹 코드 확인 =====
+    st.divider()
+    st.markdown(ui.subhead("🔗", "발행 링크 트래킹 코드 확인", "blue"), unsafe_allow_html=True)
+    st.caption("발행글의 가입/조회 링크를 넣으면 맨 끝 파라미터(utm_term = 매체·캠페인 코드)를 확인합니다. "
+               "단축 링크(tinyurl 등)는 원본까지 자동으로 따라갑니다.")
+    _cands = re.findall(r"https?://[^\s)\]<>\"']+", (published or "") + " " + (approved or ""))
+    _pref = next((u for u in _cands if "samsungfire" in u or fetcher.is_shortener(u)),
+                 (_cands[0] if _cands else ""))
+    link = st.text_input("링크 URL (발행글에서 복사해 붙여넣기)", value=_pref, key="cmp_link")
+    if st.button("파라미터 확인", key="cmp_linkparam", disabled=not link.strip()):
+        _ovl = st.empty()
+        _ovl.markdown(ui.loading_overlay("링크 확인하는 중…"), unsafe_allow_html=True)
+        try:
+            final = link.strip()
+            if fetcher.is_shortener(final):
+                final = fetcher.resolve_redirects(final)
+            st.session_state["link_info"] = {"final": final, **fetcher.parse_link_params(final)}
+        except fetcher.FetchError as e:
+            st.session_state["link_info"] = {"error": str(e)}
+        finally:
+            _ovl.empty()
+
+    _li = st.session_state.get("link_info")
+    if _li:
+        if _li.get("error"):
+            st.error(_li["error"])
+        elif _li.get("term"):
+            st.markdown(ui.kpi_cards([
+                {"icon": "🎯", "tone": "blue", "label": f"트래킹 코드 ({_li['key']})",
+                 "value": _li["term"], "sub": "링크 맨 끝 파라미터"},
+            ]), unsafe_allow_html=True)
+            with st.expander("링크 전체 파라미터 보기"):
+                st.markdown("**최종 URL**")
+                st.code(_li["final"], language=None)
+                for k, v in _li["params"]:
+                    st.markdown(f"- `{k}` = {v}")
+        else:
+            st.warning("이 링크엔 파라미터(=값)가 없습니다. utm_term 같은 추적 파라미터가 붙은 링크인지 확인해 주세요.")
+            st.code(_li.get("final", ""), language=None)
