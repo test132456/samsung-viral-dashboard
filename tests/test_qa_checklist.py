@@ -73,3 +73,13 @@ def test_experience_blog_checks_paid_ad(refs):
     items = qa_checklist.evaluate("해외여행보험 안내", "유료광고 포함 본문입니다", refs, is_official=False)
     by = {i["name"]: i["status"] for i in items}
     assert by["유료광고 문안(상단)"] in ("ok", "warn")
+
+
+def test_url_step(refs):
+    body_url = "삼성화재 해외여행보험 가입 https://direct.samsungfire.com/mall/PP030701_001.html 여기서"
+    by = {i["name"]: i["status"] for i in qa_checklist.evaluate("해외여행보험", body_url, refs)}
+    assert by["가입 링크(URL)"] == "ok"
+    by2 = {i["name"]: i["status"] for i in qa_checklist.evaluate("해외여행보험", "링크 없는 본문", refs)}
+    assert by2["가입 링크(URL)"] == "warn"
+    # 플로우가 7단계로 늘어남
+    assert len(qa_checklist.NAMES) == 7

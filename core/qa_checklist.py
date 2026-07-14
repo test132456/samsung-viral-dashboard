@@ -1,6 +1,6 @@
 """QA 원고 작성 플로우 점검 — 가이드(원고 작성 예시 플로우) 순서대로 구조 점검. 순수 함수.
 
-가이드 플로우: 제목 → 유료광고 문안 → 특약 소개(+★보장문장) → 고지문구(하단) → 해시태그(최하단)
+가이드 플로우: 제목 → 유료광고 문안 → 특약 소개(+★보장문장) → 가입 링크(URL) → 고지문구(하단) → 해시태그(최하단)
 각 항목: {name, status: 'ok'|'warn'|'fail'|'na', detail}
  ✓ ok=충족 / △ warn=부분충족·위치미흡 / ✕ fail=미충족 / — na=해당없음
 """
@@ -12,6 +12,7 @@ TITLE_MAX = 25            # 제목 글자수 상한 (가이드 기준)
 HEAD_RATIO = 0.20         # 본문 '첫 부분(상단)' 비율
 TAIL_RATIO = 0.25         # 본문 '하단' 비율
 _TAG_RE = re.compile(r"#[가-힣A-Za-z0-9_]+")
+_URL_RE = re.compile(r"https?://\S+")
 # ★ 특약 보장문장 패턴: "(담보명) 특약 가입 시, 가입 금액 한도로 보장"
 _BENEFIT_RE = re.compile(r"가입금액한도")
 
@@ -21,6 +22,7 @@ NAMES = [
     f"제목 {TITLE_MAX}자 이내",
     "유료광고 문안(상단)",
     "특약 보장문장",
+    "가입 링크(URL)",
     "고지문구(하단)",
     "해시태그(최하단)",
 ]
@@ -80,7 +82,17 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
     else:
         items.append({"name": "특약 보장문장", "status": "ok", "detail": f"보장문장 {n_benefit}곳"})
 
-    # ⑤ 고지문구 (하단 배치) — ref_required 중 '고지' 유형 기준
+    # ⑤ 원고 내 URL(가입 링크) — 심의 후 삽입 예정일 수 있어 없으면 △
+    urls = _URL_RE.findall(body)
+    sf = [u for u in urls if "samsungfire.com" in u]
+    if sf:
+        items.append({"name": "가입 링크(URL)", "status": "ok", "detail": "삼성화재 가입 링크 포함"})
+    elif urls:
+        items.append({"name": "가입 링크(URL)", "status": "warn", "detail": f"URL {len(urls)}개 · 삼성화재 가입 링크인지 확인"})
+    else:
+        items.append({"name": "가입 링크(URL)", "status": "warn", "detail": "URL 없음 (심의 후 가입 링크 삽입 예정)"})
+
+    # ⑥ 고지문구 (하단 배치) — ref_required 중 '고지' 유형 기준
     gojib = [r for r in refs.get("required", []) if "고지" in str(r.get("type", ""))] \
         or refs.get("required", [])
     if not gojib:
@@ -95,7 +107,7 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
         else:
             items.append({"name": "고지문구(하단)", "status": "warn", "detail": "고지문구 있으나 하단 아님"})
 
-    # ⑥ 해시태그 (최하단 배치)
+    # ⑦ 해시태그 (최하단 배치)
     tags = _TAG_RE.findall(body)
     tail_tags = _TAG_RE.findall(tail)
     if not tags:
