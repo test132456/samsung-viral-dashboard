@@ -28,14 +28,12 @@ def test_compare_changed_count_matches_list(refs):
     assert rep["changed"] >= 1
 
 
-def test_hashtags_split_from_notice_line():
+def test_hashtags_excluded_from_comparison():
     from core import compare_engine
-    txt = "준법감시인확인필 제00-0-0000호 (4078) #삼성화재다이렉트 #해외여행보험 #일본여행"
+    txt = "준법감시인확인필 제00-0-0000호 (4078) #삼성화재다이렉트#해외여행보험 #일본여행"
     sents = compare_engine._sentences(txt)
-    assert any("준법감시인확인필" in s and "#" not in s for s in sents)  # 번호 줄엔 해시태그 없음
-    assert "#삼성화재다이렉트" in sents
-    assert "#해외여행보험" in sents
-    assert "#일본여행" in sents
+    assert any("준법감시인확인필" in s for s in sents)   # 번호 줄은 남고
+    assert not any("#" in s for s in sents)              # 해시태그는 전부 제외
 
 
 def test_notice_number_change_not_polluted_by_hashtags():

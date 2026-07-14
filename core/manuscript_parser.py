@@ -68,8 +68,21 @@ def _divider_info(tbl: Table) -> dict | None:
     return None
 
 
+def _blips_blobs(element, rels) -> list[bytes]:
+    """XML 요소(문단/표) 안의 이미지(a:blip)들을 등장 순서대로 bytes 로."""
+    out = []
+    for blip in element.iter(qn("a:blip")):
+        rid = blip.get(qn("r:embed")) or blip.get(qn("r:link"))
+        if rid and rid in rels:
+            blob = getattr(rels[rid], "blob", None)
+            if blob:
+                out.append(blob)
+    return out
+
+
 def parse_docx_sections(file_bytes: bytes) -> list[dict]:
     doc = Document(io.BytesIO(file_bytes))
+    rels = doc.part.related_parts
     sections: list[dict] = []
     current: dict | None = None
     for child in doc.element.body.iterchildren():
@@ -77,7 +90,7 @@ def parse_docx_sections(file_bytes: bytes) -> list[dict]:
             tbl = Table(child, doc)
             info = _divider_info(tbl)
             if info is not None:
-                current = {**info, "_body": [], "_deleted": []}
+                current = {**info, "_body": [], "_deleted": [], "_images": []}
                 sections.append(current)
                 continue
             if current is not None:  # 일반 표 → 본문에 셀 텍스트 포함
@@ -86,6 +99,7 @@ def parse_docx_sections(file_bytes: bytes) -> list[dict]:
                         t = cell.text.strip()
                         if t:
                             current["_body"].append(t)
+                current["_images"].extend(_blips_blobs(child, rels))
         elif child.tag == qn("w:p"):
             if current is not None:
                 vis, struck = _para_parts(Paragraph(child, doc))
@@ -93,10 +107,12 @@ def parse_docx_sections(file_bytes: bytes) -> list[dict]:
                     current["_body"].append(vis.strip())
                 if struck.strip():
                     current["_deleted"].append(struck.strip())
+                current["_images"].extend(_blips_blobs(child, rels))
     out = []
     for s in sections:
         out.append({"order": s["order"], "name": s["name"], "url": s["url"],
-                    "title": s["title"], "body": "\n".join(s["_body"]), "deleted": s["_deleted"]})
+                    "title": s["title"], "body": "\n".join(s["_body"]),
+                    "deleted": s["_deleted"], "images": s["_images"]})
     return out
 
 

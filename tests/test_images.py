@@ -46,3 +46,29 @@ def test_extract_image_urls_order_and_lazy():
     assert urls[1] == "https://postfiles.pstatic.net/b.jpg"   # data-lazy-src 우선
     assert not any("ui-icon" in u for u in urls)              # UI 자산 제외
     assert len(urls) == 2                                     # a.jpg 중복 제거
+
+
+def _divider(doc, name):
+    t = doc.add_table(rows=4, cols=2)
+    t.cell(0, 0).text, t.cell(0, 1).text = "순번", "(1)"
+    t.cell(1, 0).text, t.cell(1, 1).text = "이름", name
+    t.cell(2, 0).text, t.cell(2, 1).text = "URL", "https://x"
+    t.cell(3, 0).text, t.cell(3, 1).text = "제목", f"{name} 제목"
+
+
+def test_images_attributed_per_blogger_section():
+    # 제아 구간 1장, 여름 구간 2장 → 각 구간에 제대로 귀속되는지
+    d = Document()
+    _divider(d, "제아")
+    d.add_paragraph("제아 본문")
+    d.add_picture(io.BytesIO(_png()))                # 제아 이미지 1
+    _divider(d, "여름")
+    d.add_paragraph("여름 본문")
+    d.add_picture(io.BytesIO(_png(4, 4)))            # 여름 이미지 1
+    d.add_picture(io.BytesIO(_png(5, 5)))            # 여름 이미지 2
+    b = io.BytesIO(); d.save(b)
+    secs = manuscript_parser.parse_docx_sections(b.getvalue())
+    by = {s["name"]: s for s in secs}
+    assert len(by["제아"]["images"]) == 1
+    assert len(by["여름"]["images"]) == 2
+    assert all(x[:8] == b"\x89PNG\r\n\x1a\n" for x in by["여름"]["images"])

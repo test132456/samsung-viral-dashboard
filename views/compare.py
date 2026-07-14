@@ -7,7 +7,9 @@ from views.qa import _refs_from_sheets
 
 
 def _approved_from_upload(up) -> str:
-    """심의본 업로드 → 텍스트. docx는 다중 원고 분리 + 블로거 선택."""
+    """심의본 업로드 → 텍스트. docx는 다중 원고 분리 + 블로거 선택.
+    선택한 블로거 구간의 이미지는 st.session_state['cmp_man_images'] 에 저장(이미지 비교용)."""
+    st.session_state["cmp_man_images"] = []
     if up is None:
         return ""
     data = up.getvalue()
@@ -25,7 +27,10 @@ def _approved_from_upload(up) -> str:
         st.caption(f"✅ **{sec['name'] or '원고'}** 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else ""))
         if sec.get("deleted"):
             st.markdown(ui.deleted_html(sec["deleted"]), unsafe_allow_html=True)
+        st.session_state["cmp_man_images"] = sec.get("images", [])
         return sec["body"]
+    # 구분표 없는 단일 원고 → 문서 전체 이미지
+    st.session_state["cmp_man_images"] = manuscript_parser.extract_images(data)
     return manuscript_parser.all_text(data)
 
 
@@ -197,7 +202,7 @@ def render_compare(sheets):
         _ovi = st.empty()
         _ovi.markdown(ui.loading_overlay("이미지 불러오는 중…"), unsafe_allow_html=True)
         try:
-            man = manuscript_parser.extract_images(up.getvalue())[:25]
+            man = st.session_state.get("cmp_man_images", [])[:25]   # 선택한 블로거 구간 이미지
             pub_urls = fetcher.fetch_naver_images(url)[:25]
             pub = []
             for u in pub_urls:
@@ -225,7 +230,7 @@ def render_compare(sheets):
             ], per_row=3), unsafe_allow_html=True)
             if n != m:
                 st.warning(f"이미지 장수가 다릅니다 (심의 {n}장 · 발행 {m}장). 빠지거나 추가된 이미지가 있는지 아래에서 확인하세요.")
-            st.caption("여러 명 원고가 든 워드면 문서 전체 이미지가 나옵니다 — 정확한 비교는 해당 블로거 원고만 올려주세요.")
+            st.caption("여러 명 원고면 위에서 **선택한 블로거 구간의 이미지**만 비교합니다 (블로거를 바꾸면 다시 눌러주세요).")
             for i in range(max(n, m)):
                 c1, c2 = st.columns(2)
                 with c1:
