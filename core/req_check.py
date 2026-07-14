@@ -109,13 +109,13 @@ def evaluate(title: str, body: str, is_official: bool = False,
     else:
         add(G1, "연관 키워드 삽입", "warn", "여행자보험 등 연관 키워드 없음")
 
-    # 4-④ 제목: 키워드 시작 + 25자 이내
-    if title.startswith(PRODUCT) and len(title) <= 25:
-        add(G1, "제목 키워드 시작·25자", "ok", f"{len(title)}자", _esc(title))
+    # 4-④ 제목: 키워드 시작 (글자수 제한 없음)
+    if title.startswith(PRODUCT):
+        add(G1, "제목 키워드 시작", "ok", "핵심 키워드로 시작", _esc(title))
     elif PRODUCT in title:
-        add(G1, "제목 키워드 시작·25자", "warn", f"{len(title)}자 · 키워드 위치/길이 확인", _esc(title))
+        add(G1, "제목 키워드 시작", "warn", "키워드 있으나 맨 앞 아님", _esc(title))
     else:
-        add(G1, "제목 키워드 시작·25자", "fail", "제목에 '해외여행보험' 없음", _esc(title))
+        add(G1, "제목 키워드 시작", "fail", "제목에 '해외여행보험' 없음", _esc(title))
 
     # 5) 허용 상품 링크만 (삼성화재 다이렉트 외 상품 링크 불가)
     foreign = [l for l in links if ALLOWED_HOST not in l]

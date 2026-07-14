@@ -10,11 +10,11 @@ def _full_body():
 
 
 def test_all_pass(refs):
-    title = "해외여행보험 가입 전 꼭 보세요"  # 키워드 시작 + 25자 이내
+    title = "해외여행보험 가입 전 꼭 보세요"  # 키워드로 시작
     items = qa_checklist.evaluate(title, _full_body(), refs)
     by = {i["name"]: i["status"] for i in items}
     assert by["제목 키워드 시작"] == "ok"
-    assert by["제목 25자 이내"] == "ok"
+    assert "제목 25자 이내" not in by            # 25자 제한 항목 제거됨
     assert by["유료광고 문안(상단)"] == "ok"
     assert by["특약 보장문장"] == "ok"
     assert by["고지문구(하단)"] == "ok"
@@ -49,11 +49,12 @@ def test_hashtags_and_notice_position(refs):
     assert by["해시태그(최하단)"] == "fail"
 
 
-def test_long_title_fail(refs):
+def test_long_title_ok_now(refs):
+    # 25자 넘어도 이상 없어야 함 (제목 길이 항목 제거)
     long_title = "해외여행보험" + "가" * 30
-    items = qa_checklist.evaluate(long_title, "유료광고 없는 본문", refs)
-    by = {i["name"]: i["status"] for i in items}
-    assert by["제목 25자 이내"] == "fail"
+    by = {i["name"]: i["status"] for i in qa_checklist.evaluate(long_title, "본문", refs)}
+    assert "제목 25자 이내" not in by
+    assert by["제목 키워드 시작"] == "ok"   # 여전히 키워드로 시작하니 통과
 
 
 def test_summary_counts(refs):
@@ -81,5 +82,5 @@ def test_url_step(refs):
     assert by["가입 링크(URL)"] == "ok"
     by2 = {i["name"]: i["status"] for i in qa_checklist.evaluate("해외여행보험", "링크 없는 본문", refs)}
     assert by2["가입 링크(URL)"] == "warn"
-    # 플로우가 7단계로 늘어남
-    assert len(qa_checklist.NAMES) == 7
+    # 플로우 6단계 (제목 키워드 / 유료광고 / 특약 보장문장 / 가입 링크 / 고지문구 / 해시태그)
+    assert len(qa_checklist.NAMES) == 6
