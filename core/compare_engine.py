@@ -19,10 +19,11 @@ def _normalize(text: str) -> str:
 
 def _sentences(text: str) -> list[str]:
     """정규화 후 문장 분리. 공백은 하나로 접고, 2자 미만 조각은 버린다
-    (원고/발행본의 줄바꿈·공백 차이로 인한 허위 diff 방지)."""
+    (원고/발행본의 줄바꿈·공백 차이로 인한 허위 diff 방지).
+    해시태그(#...) 앞에서도 끊어, 본문/고지문구 줄과 해시태그가 한 덩어리로 묶이지 않게 한다."""
     text = _normalize(text)
     out = []
-    for part in re.split(r"[.\n!?]+", text):
+    for part in re.split(r"[.\n!?]+|(?=#[0-9A-Za-z가-힣_])", text):
         s = re.sub(r"\s+", " ", part).strip()
         if len(s) >= 2:
             out.append(s)

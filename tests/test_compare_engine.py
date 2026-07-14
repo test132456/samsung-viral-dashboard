@@ -26,3 +26,23 @@ def test_compare_changed_count_matches_list(refs):
     rep = compare_engine.compare(approved, published, refs)
     assert rep["changed"] == len(rep["changed_list"])
     assert rep["changed"] >= 1
+
+
+def test_hashtags_split_from_notice_line():
+    from core import compare_engine
+    txt = "준법감시인확인필 제00-0-0000호 (4078) #삼성화재다이렉트 #해외여행보험 #일본여행"
+    sents = compare_engine._sentences(txt)
+    assert any("준법감시인확인필" in s and "#" not in s for s in sents)  # 번호 줄엔 해시태그 없음
+    assert "#삼성화재다이렉트" in sents
+    assert "#해외여행보험" in sents
+    assert "#일본여행" in sents
+
+
+def test_notice_number_change_not_polluted_by_hashtags():
+    from core import compare_engine
+    a = "준법감시인확인필 제00-0-0000호 #해외여행보험 #일본여행"
+    b = "준법감시인확인필 제26-1-4731호 #해외여행보험 #일본여행"
+    rep = compare_engine.compare(a, b, {})
+    # 번호만 바뀌고 해시태그는 그대로 → 변경 블록에 해시태그가 섞이면 안 됨
+    for ch in rep["changed_list"]:
+        assert "#" not in ch["from"] and "#" not in ch["to"]
