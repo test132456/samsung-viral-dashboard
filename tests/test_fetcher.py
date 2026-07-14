@@ -51,3 +51,20 @@ def test_is_shortener():
     from core import fetcher
     assert fetcher.is_shortener("https://tinyurl.com/abc")
     assert not fetcher.is_shortener("https://direct.samsungfire.com/x?y=1")
+
+
+def test_extract_links_and_candidates():
+    from core import fetcher
+    html = """
+    <div class="se-main-container">
+      <p>본문 <a href="https://blog.naver.com/me/1">내부글</a></p>
+      <div class="se-oglink"><a href="https://tinyurl.com/abc123"><b>삼성화재 다이렉트</b></a></div>
+      <a href="https://direct.samsungfire.com/ria/x?utm_term=F2606VR0030">직접</a>
+    </div>"""
+    links = fetcher.extract_links(html)
+    assert "https://tinyurl.com/abc123" in links
+    assert "https://blog.naver.com/me/1" in links       # 모든 http 링크 수집
+    cands = fetcher.tracking_link_candidates(links)
+    assert "https://tinyurl.com/abc123" in cands
+    assert any("samsungfire.com" in c for c in cands)
+    assert not any("blog.naver.com" in c for c in cands)  # 내부 링크는 후보 제외

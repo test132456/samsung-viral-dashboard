@@ -1,5 +1,4 @@
 """심의본비교 탭 (2순위)."""
-import re
 import streamlit as st
 from datetime import date
 from core import compare_engine, fetcher, schema, manuscript_parser
@@ -124,20 +123,45 @@ def render_compare(sheets):
     # ===== 발행 링크 트래킹 코드 확인 =====
     st.divider()
     st.markdown(ui.subhead("🔗", "발행 링크 트래킹 코드 확인", "blue"), unsafe_allow_html=True)
-    st.caption("발행글의 가입/조회 링크를 넣으면 맨 끝 파라미터(utm_term = 매체·캠페인 코드)를 확인합니다. "
-               "단축 링크(tinyurl 등)는 원본까지 자동으로 따라갑니다.")
-    _cands = re.findall(r"https?://[^\s)\]<>\"']+", (published or "") + " " + (approved or ""))
-    _pref = next((u for u in _cands if "samsungfire" in u or fetcher.is_shortener(u)),
-                 (_cands[0] if _cands else ""))
-    link = st.text_input("링크 URL (발행글에서 복사해 붙여넣기)", value=_pref, key="cmp_link")
-    if st.button("파라미터 확인", key="cmp_linkparam", disabled=not link.strip()):
+    st.caption("위 **발행 URL** 을 넣고 '발행글에서 자동 찾기'를 누르면, 본문 맨 아래 링크(tinyurl 등)를 찾아 "
+               "원본까지 따라가 맨 끝 파라미터(utm_term = 매체·캠페인 코드)를 보여줍니다. 자동으로 안 되면 링크를 직접 붙여넣으세요.")
+
+    def _resolve_and_parse(u):
+        final = fetcher.resolve_redirects(u) if fetcher.is_shortener(u) else u
+        return {"final": final, "found": u, **fetcher.parse_link_params(final)}
+
+    c_auto, c_manual = st.columns([1, 1])
+    with c_auto:
+        auto = st.button("🔎 발행글에서 자동 찾기", key="cmp_linkauto", disabled=not url.strip())
+    link = st.text_input("또는 링크 직접 붙여넣기", key="cmp_link")
+    with c_manual:
+        manual = st.button("이 링크로 확인", key="cmp_linkparam", disabled=not link.strip())
+
+    if auto:
+        _ovl = st.empty()
+        _ovl.markdown(ui.loading_overlay("발행글에서 링크 찾는 중…"), unsafe_allow_html=True)
+        try:
+            cands = fetcher.tracking_link_candidates(fetcher.fetch_naver_links(url))
+            result = None
+            for u in cands[:6]:
+                info = _resolve_and_parse(u)
+                if info.get("term"):
+                    result = info
+                    break
+            if result is None:
+                result = (_resolve_and_parse(cands[0]) if cands
+                          else {"error": "발행글에서 링크를 찾지 못했습니다. 링크를 직접 붙여넣어 주세요."})
+            st.session_state["link_info"] = result
+        except fetcher.FetchError as e:
+            st.session_state["link_info"] = {"error": str(e)}
+        finally:
+            _ovl.empty()
+
+    if manual:
         _ovl = st.empty()
         _ovl.markdown(ui.loading_overlay("링크 확인하는 중…"), unsafe_allow_html=True)
         try:
-            final = link.strip()
-            if fetcher.is_shortener(final):
-                final = fetcher.resolve_redirects(final)
-            st.session_state["link_info"] = {"final": final, **fetcher.parse_link_params(final)}
+            st.session_state["link_info"] = _resolve_and_parse(link.strip())
         except fetcher.FetchError as e:
             st.session_state["link_info"] = {"error": str(e)}
         finally:
@@ -152,6 +176,8 @@ def render_compare(sheets):
                 {"icon": "🎯", "tone": "blue", "label": f"트래킹 코드 ({_li['key']})",
                  "value": _li["term"], "sub": "링크 맨 끝 파라미터"},
             ]), unsafe_allow_html=True)
+            if _li.get("found") and _li["found"] != _li["final"]:
+                st.caption(f"🔗 발행글 링크: {_li['found']} → 원본으로 이동")
             with st.expander("링크 전체 파라미터 보기"):
                 st.markdown("**최종 URL**")
                 st.code(_li["final"], language=None)

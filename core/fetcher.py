@@ -87,6 +87,37 @@ def extract_image_urls(html: str) -> list[str]:
     return urls
 
 
+def extract_links(html: str) -> list[str]:
+    """네이버 본문(.se-main-container)의 바깥 링크(<a href>, 링크카드 포함)를 등장 순서대로 추출(순수)."""
+    soup = BeautifulSoup(html, "html.parser")
+    container = soup.select_one(".se-main-container") or soup.body
+    if container is None:
+        return []
+    out, seen = [], set()
+    for a in container.select("a[href]"):
+        href = (a.get("href") or "").strip()
+        if href.startswith("http") and href not in seen:
+            seen.add(href)
+            out.append(href)
+    return out
+
+
+def tracking_link_candidates(urls: list[str]) -> list[str]:
+    """추적 링크 후보 = 삼성화재 링크 또는 단축 링크."""
+    return [u for u in urls if "samsungfire.com" in u or is_shortener(u)]
+
+
+def fetch_naver_links(url: str, timeout: int = 10) -> list[str]:
+    """네이버 발행글 → 본문 바깥 링크 URL 리스트(네트워크)."""
+    url = _normalize_naver_url(url)
+    try:
+        resp = requests.get(url, headers={"User-Agent": _UA}, timeout=timeout)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise FetchError(f"링크 수집 실패: {e}") from e
+    return extract_links(resp.text)
+
+
 def fetch_naver_images(url: str, timeout: int = 10) -> list[str]:
     """네이버 발행글 → 콘텐츠 이미지 URL 리스트(네트워크)."""
     url = _normalize_naver_url(url)
