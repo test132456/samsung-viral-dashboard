@@ -5,6 +5,9 @@ from core import compare_engine, fetcher, schema, manuscript_parser
 from views import ui
 from views.qa import _refs_from_sheets
 
+# 파라미터 목록에서 숨길 기능(비트래킹) 파라미터
+_HIDE_PARAMS = {"state"}
+
 
 def _approved_from_upload(up) -> str:
     """심의본 업로드 → 텍스트. docx는 다중 원고 분리 + 블로거 선택.
@@ -197,6 +200,8 @@ def render_compare(sheets):
                 st.markdown("**최종 URL**")
                 st.code(_li["final"], language=None)
                 for k, v in _li["params"]:
+                    if k in _HIDE_PARAMS:   # 트래킹과 무관한 기능 파라미터는 숨김
+                        continue
                     st.markdown(f"- `{k}` = {v}")
         else:
             st.warning("이 링크엔 파라미터(=값)가 없습니다. utm_term 같은 추적 파라미터가 붙은 링크인지 확인해 주세요.")
