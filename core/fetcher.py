@@ -65,6 +65,47 @@ def _normalize_naver_url(url: str) -> str:
     return url
 
 
+def extract_image_urls(html: str) -> list[str]:
+    """네이버 본문(.se-main-container)의 콘텐츠 이미지 URL을 등장 순서대로 추출(순수).
+    lazy 로딩 대비 data-lazy-src/src 순으로 보고, UI 아이콘/스티커는 최대한 제외."""
+    soup = BeautifulSoup(html, "html.parser")
+    container = soup.select_one(".se-main-container") or soup.body
+    if container is None:
+        return []
+    urls, seen = [], set()
+    for img in container.select("img"):
+        src = (img.get("data-lazy-src") or img.get("src") or img.get("data-src") or "").strip()
+        if not src.startswith("http"):
+            continue
+        if "pstatic.net/static" in src or "/dthumb" in src:  # UI/에디터 자산 제외
+            continue
+        base = src.split("?")[0]
+        if base in seen:
+            continue
+        seen.add(base)
+        urls.append(src)
+    return urls
+
+
+def fetch_naver_images(url: str, timeout: int = 10) -> list[str]:
+    """네이버 발행글 → 콘텐츠 이미지 URL 리스트(네트워크)."""
+    url = _normalize_naver_url(url)
+    try:
+        resp = requests.get(url, headers={"User-Agent": _UA}, timeout=timeout)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise FetchError(f"이미지 수집 실패: {e}") from e
+    return extract_image_urls(resp.text)
+
+
+def fetch_image(url: str, timeout: int = 10) -> bytes:
+    """이미지 URL → bytes(네트워크). 네이버 CDN 핫링크 방지 대비 Referer 지정."""
+    r = requests.get(url, timeout=timeout,
+                     headers={"User-Agent": _UA, "Referer": "https://blog.naver.com/"})
+    r.raise_for_status()
+    return r.content
+
+
 def fetch_naver_text(url: str, timeout: int = 10) -> str:
     """URL → 본문. 네이버는 iframe 구조라 mobile(m.blog) URL로 정규화 후 시도."""
     url = _normalize_naver_url(url)

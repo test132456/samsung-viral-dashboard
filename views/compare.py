@@ -159,3 +159,57 @@ def render_compare(sheets):
         else:
             st.warning("이 링크엔 파라미터(=값)가 없습니다. utm_term 같은 추적 파라미터가 붙은 링크인지 확인해 주세요.")
             st.code(_li.get("final", ""), language=None)
+
+    # ===== 이미지 비교 (순서대로 나란히) =====
+    st.divider()
+    st.markdown(ui.subhead("🖼️", "이미지 비교 (순서대로)", "blue"), unsafe_allow_html=True)
+    st.caption("심의 원고(워드)와 발행글 이미지를 같은 순번끼리 나란히 보여줍니다. "
+               "순서가 동일하다는 전제로 위치별로 대조하세요. (워드 원고 업로드 + 발행 URL 필요)")
+    _img_ready = up is not None and up.name.lower().endswith(".docx") and bool(url.strip())
+    if st.button("이미지 비교", key="cmp_img", disabled=not _img_ready):
+        _ovi = st.empty()
+        _ovi.markdown(ui.loading_overlay("이미지 불러오는 중…"), unsafe_allow_html=True)
+        try:
+            man = manuscript_parser.extract_images(up.getvalue())[:25]
+            pub_urls = fetcher.fetch_naver_images(url)[:25]
+            pub = []
+            for u in pub_urls:
+                try:
+                    pub.append(fetcher.fetch_image(u))
+                except Exception:
+                    pub.append(None)  # 다운로드 실패 → 링크로 대체 표시
+            st.session_state["img_cmp"] = {"man": man, "pub": pub, "urls": pub_urls}
+        except fetcher.FetchError as e:
+            st.session_state["img_cmp"] = {"error": str(e)}
+        finally:
+            _ovi.empty()
+
+    ic = st.session_state.get("img_cmp")
+    if ic:
+        if ic.get("error"):
+            st.error(ic["error"])
+        else:
+            n, m = len(ic["man"]), len(ic["pub"])
+            st.markdown(ui.kpi_cards([
+                {"icon": "📄", "tone": "blue", "label": "심의 원고 이미지", "value": f"{n}장", "sub": "워드 삽입"},
+                {"icon": "📤", "tone": "blue", "label": "발행글 이미지", "value": f"{m}장", "sub": "네이버"},
+                {"icon": "🔢", "tone": "green" if n == m else "red", "label": "장수 일치",
+                 "value": "일치" if n == m else f"{abs(n - m)}장 차이", "sub": "심의 vs 발행"},
+            ], per_row=3), unsafe_allow_html=True)
+            if n != m:
+                st.warning(f"이미지 장수가 다릅니다 (심의 {n}장 · 발행 {m}장). 빠지거나 추가된 이미지가 있는지 아래에서 확인하세요.")
+            st.caption("여러 명 원고가 든 워드면 문서 전체 이미지가 나옵니다 — 정확한 비교는 해당 블로거 원고만 올려주세요.")
+            for i in range(max(n, m)):
+                c1, c2 = st.columns(2)
+                with c1:
+                    if i < n:
+                        st.image(ic["man"][i], caption=f"심의 {i + 1}", use_container_width=True)
+                    else:
+                        st.markdown(f"**심의 {i + 1}** — ❌ 없음")
+                with c2:
+                    if i < m and ic["pub"][i] is not None:
+                        st.image(ic["pub"][i], caption=f"발행 {i + 1}", use_container_width=True)
+                    elif i < m:
+                        st.markdown(f"**발행 {i + 1}** — 이미지 로드 실패 · [원본 열기]({ic['urls'][i]})")
+                    else:
+                        st.markdown(f"**발행 {i + 1}** — ❌ 없음")

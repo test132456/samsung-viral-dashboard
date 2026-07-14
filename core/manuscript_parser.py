@@ -138,6 +138,22 @@ def find_page(pages: list[tuple[int, str]], needle: str) -> int | None:
     return None
 
 
+def extract_images(file_bytes: bytes) -> list[bytes]:
+    """워드에 삽입된 이미지들을 문서 등장 순서대로 bytes 리스트로 반환.
+    (여러 명 원고가 든 문서면 문서 전체 이미지가 나온다 — 블로거별 비교는 해당 원고만 올려서.)"""
+    doc = Document(io.BytesIO(file_bytes))
+    rels = doc.part.related_parts
+    out = []
+    for blip in doc.element.body.iter(qn("a:blip")):
+        rid = blip.get(qn("r:embed")) or blip.get(qn("r:link"))
+        if not rid or rid not in rels:
+            continue
+        blob = getattr(rels[rid], "blob", None)
+        if blob:
+            out.append(blob)
+    return out
+
+
 def read_pdf(file_bytes: bytes) -> str:
     """PDF 전체 텍스트 추출(pypdf). 스캔본(이미지 PDF)은 텍스트가 거의 안 나올 수 있음."""
     from pypdf import PdfReader
