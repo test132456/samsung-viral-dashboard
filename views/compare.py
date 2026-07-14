@@ -38,12 +38,15 @@ def render_compare(sheets):
     st.markdown(ui.page_header("🔀 원고 ↔ 발행물 비교",
                                "워드 원고(이름 선택)와 네이버 발행 URL을 자동수집해 문장 단위로 비교"),
                 unsafe_allow_html=True)
-    col_l, col_r = st.columns(2)
-    with col_l:
-        up = st.file_uploader("심의 완료본 (.docx/.txt) — 여러 명 원고 자동 분리",
-                              type=["docx", "txt"], key="appr")
-        approved = st.text_area("심의 완료본 텍스트", value=_approved_from_upload(up), height=240)
-    with col_r:
+    # 업로더는 상단 전체폭 → 아래 좌/우 높이가 자연스럽게 맞음
+    up = st.file_uploader("심의 완료본 (.docx/.txt) — 여러 명 원고 자동 분리",
+                          type=["docx", "txt"], key="appr")
+
+    # 1줄: 블로거 선택(좌) ↔ 발행 URL·자동수집(우)
+    row1_l, row1_r = st.columns(2)
+    with row1_l:
+        approved_default = _approved_from_upload(up)   # 블로거 선택 + 추출 안내 + 삭제표시
+    with row1_r:
         url = st.text_input("발행 URL", key="cmp_url")
         published = st.session_state.get("pub_text", "")
         if st.button("URL 자동수집", key="cmp_fetch"):
@@ -57,7 +60,14 @@ def render_compare(sheets):
                 st.error(str(e))
             finally:
                 _ov.empty()
-        published = st.text_area("발행본 텍스트 (자동수집 실패 시 직접 붙여넣기)", value=published, height=240)
+
+    # 2줄: 심의 완료본 텍스트(좌) ↔ 발행본 텍스트(우) — 같은 줄에서 시작해 높이 정렬
+    row2_l, row2_r = st.columns(2)
+    with row2_l:
+        approved = st.text_area("심의 완료본 텍스트", value=approved_default, height=260)
+    with row2_r:
+        published = st.text_area("발행본 텍스트", value=published, height=260,
+                                 help="URL 자동수집이 안 되면 발행글 내용을 직접 붙여넣으세요.")
 
     if st.button("비교 실행", type="primary", disabled=not (approved.strip() and published.strip()), key="cmp_run"):
         _ov = st.empty()
