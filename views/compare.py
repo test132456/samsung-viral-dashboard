@@ -13,6 +13,8 @@ def _approved_from_upload(up) -> str:
     """심의본 업로드 → 텍스트. docx는 다중 원고 분리 + 블로거 선택.
     선택한 블로거 구간의 이미지는 st.session_state['cmp_man_images'] 에 저장(이미지 비교용)."""
     st.session_state["cmp_man_images"] = []
+    st.session_state["cmp_sel_name"] = ""
+    st.session_state["cmp_sel_title"] = ""
     if up is None:
         return ""
     data = up.getvalue()
@@ -31,6 +33,8 @@ def _approved_from_upload(up) -> str:
         if sec.get("deleted"):
             st.markdown(ui.deleted_html(sec["deleted"]), unsafe_allow_html=True)
         st.session_state["cmp_man_images"] = sec.get("images", [])
+        st.session_state["cmp_sel_name"] = sec.get("name", "")
+        st.session_state["cmp_sel_title"] = sec.get("title", "")
         return sec["body"]
     # 구분표 없는 단일 원고 → 문서 전체 이미지
     st.session_state["cmp_man_images"] = manuscript_parser.extract_images(data)
@@ -137,6 +141,13 @@ def render_compare(sheets):
         _extra = max(0, len(changed) - LIMIT) + max(0, len(deleted) - LIMIT) + max(0, len(added) - LIMIT)
         if _extra:
             st.caption(f"… 외 {_extra}건 더 있음 (유형별 상위 {LIMIT}건만 표시)")
+
+        # ✉️ 실행사 수정 요청 메일 양식 (복붙용)
+        st.markdown(ui.subhead("✉️", "수정 요청 메일 양식", "blue"), unsafe_allow_html=True)
+        st.caption("발행글을 원고(심의본)에 맞추기 위한 수정 요청입니다. 우측 상단 복사 버튼으로 복사해 실행사에 그대로 전달하세요.")
+        st.code(compare_engine.revision_request(
+            rep, blogger=st.session_state.get("cmp_sel_name", ""),
+            approved_title=st.session_state.get("cmp_sel_title", "")), language=None)
 
     # ===== 발행 링크 트래킹 코드 확인 =====
     st.divider()

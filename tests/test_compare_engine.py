@@ -44,3 +44,22 @@ def test_notice_number_change_not_polluted_by_hashtags():
     # 번호만 바뀌고 해시태그는 그대로 → 변경 블록에 해시태그가 섞이면 안 됨
     for ch in rep["changed_list"]:
         assert "#" not in ch["from"] and "#" not in ch["to"]
+
+
+def test_revision_request_categorizes_and_directs():
+    from core import compare_engine as ce
+    a = "정말 중요하게 생각해야. 동반가입과 요청시 확인."
+    b = "가장 중요하게 생각해야. 동반 가입과 요청 시 확인."
+    rep = ce.compare(a, b, {})
+    txt = ce.revision_request(rep, blogger="여름", approved_title="원고 제목")
+    assert "<수정 요청 · 여름>" in txt
+    assert "가장 → 정말" in txt                 # 문구: 현재(발행) → 수정(원고)
+    assert "동반 가입과 → 동반가입과" in txt      # 띄어쓰기 섹션
+    assert "문구 수정" in txt and "띄어쓰기" in txt
+    assert "제목 확인" in txt
+
+
+def test_revision_request_no_change():
+    from core import compare_engine as ce
+    txt = ce.revision_request(ce.compare("같은 문장이에요.", "같은 문장이에요.", {}))
+    assert "수정 사항 없음" in txt

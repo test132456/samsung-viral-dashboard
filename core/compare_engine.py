@@ -31,6 +31,72 @@ def _sentences(text: str) -> list[str]:
     return out
 
 
+def _change_fragments(orig: str, pub: str) -> list[tuple[str, str]]:
+    """원고(orig)↔발행(pub)에서 바뀐 구간마다 (발행조각=현재, 원고조각=수정)로 잘라 리스트로.
+    변경 지점을 단어 경계까지 넓혀 읽기 좋게 한다. 순수 삽입/삭제면 한쪽이 ''."""
+    def expand(s, lo, hi):
+        while lo > 0 and not s[lo - 1].isspace():
+            lo -= 1
+        while hi < len(s) and not s[hi].isspace():
+            hi += 1
+        return lo, hi
+    sm = difflib.SequenceMatcher(None, orig, pub, autojunk=False)
+    out = []
+    for tag, oa, ob, pa, pb in sm.get_opcodes():
+        if tag == "equal":
+            continue
+        oa2, ob2 = expand(orig, oa, ob)
+        pa2, pb2 = expand(pub, pa, pb)
+        out.append((pub[pa2:pb2].strip(), orig[oa2:ob2].strip()))
+    return out
+
+
+def revision_request(rep: dict, blogger: str = "", approved_title: str = "") -> str:
+    """비교 결과 → 실행사 수정 요청 메일 문구(복붙용). 발행을 원고(심의본)에 맞추는 방향(현재 → 수정)."""
+    changed = rep.get("changed_list", [])
+    deleted = [d.strip() for d in rep.get("deleted_list", []) if d.strip()]
+    added = [a.strip() for a in rep.get("added_list", []) if a.strip()]
+
+    blocks = [f"<수정 요청 · {blogger}>" if blogger else "<수정 요청>", ""]
+    n = [1]
+
+    def add_sec(title, lines):
+        if lines:
+            blocks.append(f"{n[0]}. {title}")
+            blocks.extend(lines)
+            blocks.append("")
+            n[0] += 1
+
+    # 변경 조각을 모아 '띄어쓰기(공백만 다름)' vs '문구'로 각각 분류
+    content_lines, spacing_lines, seen = [], [], set()
+    nospace = lambda s: re.sub(r"\s+", "", s)
+    for c in changed:
+        for cur, want in _change_fragments(c["from"], c["to"]):  # from=원고, to=발행
+            if cur and want and cur != want:
+                line, is_space = f"• {cur} → {want}", nospace(cur) == nospace(want)
+            elif want and not cur:
+                line, is_space = f"• (추가) {want}", False
+            elif cur and not want:
+                line, is_space = f"• (삭제) {cur}", False
+            else:
+                continue
+            if line in seen:
+                continue
+            seen.add(line)
+            (spacing_lines if is_space else content_lines).append(line)
+
+    add_sec("문구 수정 (현재 → 수정)", content_lines)
+    add_sec("띄어쓰기·공백 (현재 → 수정)", spacing_lines)
+    add_sec("발행에 누락 — 추가 필요", [f"• {d}" for d in deleted])
+    add_sec("발행에만 있음 — 삭제 검토", [f"• {a}" for a in added])
+    if approved_title:
+        add_sec("제목 확인", [f"• 원고(심의) 제목: {approved_title}",
+                           "• 발행 제목이 위와 다르면 함께 수정 요청"])
+    if n[0] == 1:
+        blocks.append("수정 사항 없음 — 발행본이 원고와 일치합니다.")
+    return "\n".join(blocks).strip()
+
+
 def compare(approved: str, published: str, refs: dict) -> dict:
     a, b = _sentences(approved), _sentences(published)
     sm = difflib.SequenceMatcher(None, a, b)
