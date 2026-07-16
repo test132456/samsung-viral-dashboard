@@ -9,6 +9,12 @@ from views.qa import _refs_from_sheets
 _HIDE_PARAMS = {"state"}
 
 
+@st.cache_data(show_spinner=False)
+def _cmp_pages(data: bytes):
+    """업로드한 심의본(docx)의 문단별 추정 페이지 — 수정 위치 안내용."""
+    return manuscript_parser.paragraph_pages(data)
+
+
 def _approved_from_upload(up) -> str:
     """심의본 업로드 → 텍스트. docx는 다중 원고 분리 + 블로거 선택.
     선택한 블로거 구간의 이미지는 st.session_state['cmp_man_images'] 에 저장(이미지 비교용)."""
@@ -106,6 +112,14 @@ def render_compare(sheets):
                         f'border-radius:6px;margin-bottom:7px;font-family:Pretendard,sans-serif">{body}</div>',
                         unsafe_allow_html=True)
 
+        # 원고(심의본) 기준 페이지 — 수정 필요한 영역을 원고에서 바로 찾도록
+        _pages = (_cmp_pages(up.getvalue())
+                  if (up is not None and up.name.lower().endswith(".docx")) else None)
+
+        def _pg(s):
+            p = manuscript_parser.find_page(_pages, s) if _pages else None
+            return f' · 원고 {p}쪽' if p else ""
+
         LIMIT = 15
         changed = [c for c in rep["changed_list"] if c["from"].strip() or c["to"].strip()]
         deleted = [d for d in rep["deleted_list"] if d.strip()]
@@ -120,19 +134,20 @@ def render_compare(sheets):
         for ch in changed[:LIMIT]:
             _a, _b = ui.diff_pair(ch["from"].strip(), ch["to"].strip())
             _a, _b = (_a or "(빈 문장)"), (_b or "(빈 문장)")
+            _loc = _pg(ch["from"])
             if ch.get("kind") == "spacing":
                 _blk("#b3bccb", "#f4f6fa",
-                     '<div style="font-size:11px;font-weight:700;color:#7a8597">🔤 띄어쓰기 차이 (내용 동일·참고용)</div>'
+                     f'<div style="font-size:11px;font-weight:700;color:#7a8597">🔤 띄어쓰기 차이 (내용 동일·참고용){_loc}</div>'
                      f'<div style="font-size:12.5px;color:#5b6678;margin-top:3px">📄 원고: {_a}</div>'
                      f'<div style="font-size:12.5px;color:#5b6678;margin-top:2px">📤 발행: {_b}</div>')
             else:
                 _blk("#f5a623", "#fff8ec",
-                     '<div style="font-size:11px;font-weight:700;color:#d98300">✏️ 변경 (바뀐 글자 빨강)</div>'
+                     f'<div style="font-size:11px;font-weight:700;color:#d98300">✏️ 변경 (바뀐 글자 빨강){_loc}</div>'
                      f'<div style="font-size:12.5px;color:#8a6d3b;margin-top:3px">📄 원고: {_a}</div>'
                      f'<div style="font-size:12.5px;color:#16213d;margin-top:2px">📤 발행: {_b}</div>')
         for d in deleted[:LIMIT]:
             _blk("#e23b3b", "#ffecec",
-                 '<div style="font-size:11px;font-weight:700;color:#e23b3b">🗑️ 원고에만 있음 (발행본서 빠짐)</div>'
+                 f'<div style="font-size:11px;font-weight:700;color:#e23b3b">🗑️ 원고에만 있음 (발행본서 빠짐){_pg(d)}</div>'
                  f'<div style="font-size:12.5px;color:#16213d;margin-top:2px">{d}</div>')
         for a in added[:LIMIT]:
             _blk("#2bb673", "#eafaf0",

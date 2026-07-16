@@ -2,7 +2,7 @@
 import streamlit as st
 import docx, io
 from datetime import date
-from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guide, req_check
+from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guide, req_check, typo, library
 from views import ui
 
 
@@ -82,10 +82,16 @@ def render_qa(sheets, claude=None):
     with col_opt:
         post_type = st.radio("원고 유형", ["체험단(배포형)", "공식블로그"], key="qa_type")
         is_official = post_type == "공식블로그"
-        use_ai = st.toggle("AI 2차검수", value=bool(claude), key="qa_use_ai")
         title = st.text_input("제목", value=title_default, placeholder="원고 제목 (체크리스트용)")
-        terms_up = st.file_uploader("약관 파일 (선택 · 특약명 교차확인용)", type=["pdf", "docx", "txt"], key="qa_terms")
-        guide_up = st.file_uploader("작성 가이드 (pptx)", type=["pptx"], key="qa_guide")
+        # 📚 자료실: 약관·가이드는 여기에 등록된 최신본을 자동 사용
+        _tm, _gm = library.terms_meta(), library.guide_meta()
+        st.markdown(
+            "📚 **자료실** (최신본 자동 사용)  \n"
+            + (f"• 작성가이드 ✅ {_gm['updated']}" if _gm else "• 작성가이드 ⬜ 미등록") + "  \n"
+            + (f"• 약관 ✅ {_tm['updated']}" if _tm else "• 약관 ⬜ 미등록"))
+        with st.expander("이번 검수만 다른 파일 쓰기 (선택)"):
+            terms_up = st.file_uploader("약관 (pdf/docx/txt)", type=["pdf", "docx", "txt"], key="qa_terms")
+            guide_up = st.file_uploader("작성 가이드 (pptx)", type=["pptx"], key="qa_guide")
     with col_in:
         text = st.text_area("원고 텍스트", value=text_default, height=260)
 
@@ -97,8 +103,7 @@ def render_qa(sheets, claude=None):
             if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
                 refs = {**refs, "required": [r for r in refs.get("required", [])
                                              if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
-            judge = (lambda t: claude.judge_expressions(t, "")) if (use_ai and claude) else None
-            st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=judge)
+            st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=None)
             st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs, is_official=is_official)
         finally:
             _ov.empty()
@@ -123,18 +128,23 @@ def render_qa(sheets, claude=None):
     _ov2 = st.empty()
     _ov2.markdown(ui.loading_overlay("원고 살펴보는 중… 가이드·약관 대조"), unsafe_allow_html=True)
     try:
-        g = _guide_parsed(guide_up.getvalue()) if guide_up is not None else None
+        # 약관·가이드: 업로드가 있으면 그걸, 없으면 자료실 최신본 사용
+        guide_data = guide_up.getvalue() if guide_up is not None else library.guide_bytes()
+        terms_data = terms_up.getvalue() if terms_up is not None else library.terms_bytes()
+        terms_name = terms_up.name if terms_up is not None else (library.terms_meta() or {}).get("name", "약관.pdf")
+        g = _guide_parsed(guide_data) if guide_data else None
         gc = guide.check(text, g) if g else None
-        # 특약명 기준 = 가이드 '메인 담보명' (미인식 시 정식 기본값). 약관 PDF는 특약명 소스로 쓰지 않음
+        # 특약명 기준 = 가이드 '메인 담보명' (미인식 시 정식 기본값). 약관은 특약명 소스로 쓰지 않음
         guide_riders = g.get("riders", []) if g else []
         ref_riders = guide_riders or guide.DEFAULT_RIDERS
         rider_src = "가이드" if guide_riders else "가이드 기본"
         rv = terms.verify_usage(text, ref_riders)
-        # (선택) 약관 PDF 업로드 시 정식 특약명이 약관에서도 확인되는지 교차확인
+        # (선택) 약관이 있으면 정식 특약명이 약관에서도 확인되는지 교차확인
         terms_confirm = None
-        if terms_up is not None:
-            rawn = terms._norm(_terms_text(terms_up.getvalue(), terms_up.name))
+        if terms_data:
+            rawn = terms._norm(_terms_text(terms_data, terms_name))
             terms_confirm = sum(1 for r in ref_riders if terms._norm(r) in rawn)
+        typos = typo.check_typos(text)
         rs = report.get("required_status", [])
         # 원고 쪽수(추정) — 잘못된 부분 위치 표시용 (워드 업로드 시)
         pages = (_doc_pages(up.getvalue())
@@ -162,7 +172,9 @@ def render_qa(sheets, claude=None):
         # --- 1줄: 규제·약관 ---
         ({"icon": "🚫", "tone": "red" if gc["banned_hits"] else "green", "label": "표현불가 문구",
           "value": f'{len(gc["banned_hits"])}건', "sub": "가이드 기준 사용"} if gc else
-         {"icon": "🚫", "tone": "gray", "label": "표현불가 문구", "value": "–", "sub": "가이드 미업로드"}),
+         {"icon": "🚫", "tone": "gray", "label": "표현불가 문구", "value": "–", "sub": "자료실 없음"}),
+        {"icon": "🔤", "tone": "red" if typos else "green", "label": "오탈자",
+         "value": f'{len(typos)}건', "sub": "오타 사전"},
         {"icon": "⛔", "tone": "red" if report["banned_count"] else "green", "label": "금지표현(사전)",
          "value": f'{report["banned_count"]}건', "sub": "기본 사전"},
         {"icon": "📑", "tone": "red" if rv["mismatch_count"] else "green", "label": "특약명",
@@ -177,13 +189,19 @@ def render_qa(sheets, claude=None):
           {"icon": "💸", "tone": "gray", "label": "유료광고 표기", "value": "–", "sub": "기준 없음"})),
         ({"icon": "#️⃣", "tone": "green" if not gc["tags_missing"] else "amber", "label": "필수 해시태그",
           "value": f'{len(gc["tags_included"])}/{gc["tags_total"]}', "sub": "포함"} if gc else
-         {"icon": "#️⃣", "tone": "gray", "label": "필수 해시태그", "value": "–", "sub": "가이드 미업로드"}),
+         {"icon": "#️⃣", "tone": "gray", "label": "필수 해시태그", "value": "–", "sub": "자료실 없음"}),
         {"icon": "🔑", "tone": "green" if 3 <= kwc <= 5 else "amber", "label": "'해외여행보험' 키워드",
          "value": f'{kwc}개', "sub": "가이드 3~5개"},
         {"icon": "💰", "tone": "amber" if report["price_found"] else "green", "label": "보험료 기재",
          "value": "발견" if report["price_found"] else "없음", "sub": "금액 탐지"},
     ]
     st.markdown(ui.kpi_cards(cards, per_row=4), unsafe_allow_html=True)
+
+    # --- 오탈자 검수 (as-is → to-be) ---
+    if typos:
+        st.markdown(ui.subhead("🔤", "오탈자 검수", "red", stat=f"{len(typos)}건 · 확인 필요"),
+                    unsafe_allow_html=True)
+        st.markdown(ui.typo_detail(typos), unsafe_allow_html=True)
 
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:

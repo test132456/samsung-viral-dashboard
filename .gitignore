@@ -10,3 +10,10 @@ __pycache__/
 *.xls
 *.docx
 *.pptx
+
+# 자료실(reference) 번들 파일은 예외로 포함
+!reference/
+!reference/*.pdf
+!reference/*.docx
+!reference/*.txt
+!reference/*.pptx
