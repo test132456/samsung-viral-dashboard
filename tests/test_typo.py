@@ -46,6 +46,22 @@ def test_diff_corrections_ignores_spacing_only():
     assert typo.diff_corrections("여행자보험을 챙겨요.", "여행자 보험을 챙겨요.") == []
 
 
+def test_no_false_positives_on_clean_text():
+    # 정상 문장에서 오탈자를 잘못 잡으면 안 됨(오탐 = 신뢰 하락)
+    clean = ("이번 여름 유럽 여행을 준비하며 콘텐츠를 꼼꼼히 확인했습니다. "
+             "리더십을 발휘해 여행자 보험도 미리 가입했어요.")
+    assert typo.check_typos(clean) == []
+
+
+def test_expanded_dict_loanword_and_ending_rule():
+    d = {x["as_is"]: x["to_be"] for x in typo.check_typos("컨텐츠를 만들었슴니다. 리더쉽 케잌 뵈요 어짜피")}
+    assert d.get("컨텐츠") == "콘텐츠"
+    assert d.get("슴니다") == "습니다"      # ~슴니다 종결어미 오타 클래스
+    assert d.get("리더쉽") == "리더십"
+    assert d.get("케잌") == "케이크"
+    assert d.get("어짜피") == "어차피"
+
+
 def test_clean_for_spell_strips_url_tag_legal():
     txt = ("유렵 여행 https://www.samsungfire.com/travel 이메일 a@b.com\n"
            "준법감시인확인필 제26-1-4731호 예금자보호\n"

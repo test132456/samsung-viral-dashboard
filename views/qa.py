@@ -7,16 +7,20 @@ from views import ui
 
 
 @st.cache_data(show_spinner=False)
-def _spellcheck(text: str) -> list[dict]:
-    """오탈자 = 사전(항상) + 네이버 맞춤법(가능하면). text 기준 캐시.
-    네이버가 막히거나 느리면 조용히 사전 결과만 반환한다."""
+def _spellcheck(text: str):
+    """오탈자 = 사전(항상, 신뢰) + 네이버 맞춤법(가능하면). text 기준 캐시.
+    반환: (오탈자목록, naver_ok). 네이버가 막히면 naver_ok=False + 사전 결과만."""
     items = list(typo.check_typos(text))
-    for it in typo.naver_typos(text):  # 네이버(실패 시 [])
-        # 이미 사전/이전 항목이 같은 교정을 (조사만 다르게) 커버하면 건너뜀
-        dup = any(e["as_is"] in it["as_is"] and e["to_be"] in it["to_be"] for e in items)
-        if not dup and it["to_be"] not in it["as_is"]:
-            items.append(it)
-    return items[:60]
+    clean = typo._clean_for_spell(text)
+    corrected = typo.spellcheck_naver(clean)  # 실패/차단 시 None
+    naver_ok = corrected is not None
+    if naver_ok:
+        for it in typo.diff_corrections(clean, corrected):
+            # 이미 사전/이전 항목이 같은 교정을 (조사만 다르게) 커버하면 건너뜀
+            dup = any(e["as_is"] in it["as_is"] and e["to_be"] in it["to_be"] for e in items)
+            if not dup and it["to_be"] not in it["as_is"]:
+                items.append(it)
+    return items[:60], naver_ok
 
 
 def _refs_from_sheets(sheets) -> dict:
@@ -150,8 +154,9 @@ def render_qa(sheets, claude=None):
             if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
                 refs = {**refs, "required": [r for r in refs.get("required", [])
                                              if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
-            _typos = _spellcheck(text)  # 사전 + 네이버 맞춤법
+            _typos, _naver_ok = _spellcheck(text)  # 사전 + 네이버 맞춤법
             st.session_state["qa_typos"] = _typos
+            st.session_state["qa_naver_ok"] = _naver_ok
             st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=None)
             st.session_state["qa_checklist"] = qa_checklist.evaluate(
                 title, text, refs, is_official=is_official, typos=_typos)
@@ -247,11 +252,19 @@ def render_qa(sheets, claude=None):
     st.markdown(ui.kpi_cards(cards, per_row=4), unsafe_allow_html=True)
 
     # --- 오탈자 검수 (as-is → to-be) ---
+    _naver_ok = st.session_state.get("qa_naver_ok")
     if typos:
         st.markdown(ui.subhead("🔤", "맞춤법 검사 (오탈자)", "red", stat=f"{len(typos)}건 · 확인 필요"),
                     unsafe_allow_html=True)
         st.markdown(ui.typo_detail(typos, page_of=pg), unsafe_allow_html=True)
-        st.caption("오타 사전 + 네이버 맞춤법 검사기 기준 · 문맥상 맞는 표현이면 무시하세요")
+        if _naver_ok:
+            st.caption("오타 사전 + 네이버 맞춤법 검사기 기준 · 문맥상 맞는 표현이면 무시하세요")
+        else:
+            st.caption("⚠️ **오타 사전 기준만** 표시 · 네이버 맞춤법 검사기가 이 서버에서 차단돼 미동작 "
+                       "→ 사전에 없는 오타는 못 잡을 수 있어요")
+    elif _naver_ok is False:
+        st.info("🔤 사전 기준 오탈자는 없습니다. 단, **네이버 맞춤법 검사기가 이 서버(클라우드)에서 차단돼** "
+                "임의 오타는 확인하지 못했어요. 정확한 맞춤법 확인이 필요하면 로컬 실행 또는 별도 검사기를 권장합니다.")
 
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:
