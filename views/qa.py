@@ -6,9 +6,14 @@ from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guid
 from views import ui
 
 
+# 오타 사전(TYPOS)/검사 로직이 바뀌면 +1 → 배포 시 st.cache_data 캐시 자동 무효화
+_TYPO_LOGIC_VER = 2
+
+
 @st.cache_data(show_spinner=False)
-def _spellcheck(text: str):
+def _spellcheck(text: str, logic_ver: int):
     """오탈자 = 사전(항상, 신뢰) + 네이버 맞춤법(가능하면). text 기준 캐시.
+    logic_ver 는 캐시 키에 포함돼 사전/로직 변경 시 캐시를 무효화한다(_TYPO_LOGIC_VER).
     반환: (오탈자목록, naver_ok). 네이버가 막히면 naver_ok=False + 사전 결과만."""
     items = list(typo.check_typos(text))
     clean = typo._clean_for_spell(text)
@@ -154,7 +159,7 @@ def render_qa(sheets, claude=None):
             if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
                 refs = {**refs, "required": [r for r in refs.get("required", [])
                                              if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
-            _typos, _naver_ok = _spellcheck(text)  # 사전 + 네이버 맞춤법
+            _typos, _naver_ok = _spellcheck(text, _TYPO_LOGIC_VER)  # 사전 + 네이버 맞춤법
             st.session_state["qa_typos"] = _typos
             st.session_state["qa_naver_ok"] = _naver_ok
             st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=None)

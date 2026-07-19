@@ -9,9 +9,15 @@ from views.qa import _refs_from_sheets
 _HIDE_PARAMS = {"state"}
 
 
+# 페이지 계산 로직(paragraph_pages)이 바뀌면 이 숫자를 +1 → 배포 시 st.cache_data 캐시 자동 무효화.
+# (st.cache_data 는 '캐시된 함수 자신'만 보고, 그 안에서 호출하는 함수 변경은 감지 못 하므로 필요)
+_PAGES_LOGIC_VER = 2
+
+
 @st.cache_data(show_spinner=False)
-def _cmp_pages(data: bytes):
-    """업로드한 심의본(docx)의 문단별 추정 페이지 — 수정 위치 안내용."""
+def _cmp_pages(data: bytes, logic_ver: int):
+    """업로드한 심의본(docx)의 문단별 추정 페이지 — 수정 위치 안내용.
+    logic_ver 는 캐시 키에 포함돼 로직 변경 시 캐시를 무효화한다(_PAGES_LOGIC_VER)."""
     return manuscript_parser.paragraph_pages(data)
 
 
@@ -113,7 +119,7 @@ def render_compare(sheets):
                         unsafe_allow_html=True)
 
         # 원고(심의본) 기준 페이지 — 수정 필요한 영역을 원고에서 바로 찾도록
-        _pages = (_cmp_pages(up.getvalue())
+        _pages = (_cmp_pages(up.getvalue(), _PAGES_LOGIC_VER)
                   if (up is not None and up.name.lower().endswith(".docx")) else None)
 
         def _pg(s):
