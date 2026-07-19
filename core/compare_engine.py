@@ -67,31 +67,39 @@ def revision_request(rep: dict, blogger: str = "", approved_title: str = "") -> 
             blocks.append("")
             n[0] += 1
 
-    # 변경 조각을 모아 '띄어쓰기(공백만 다름)' vs '문구'로 각각 분류
-    content_lines, spacing_lines, seen = [], [], set()
+    # 변경 조각을 '문구 / 문장부호 / 띄어쓰기'로 각각 분류
+    content_lines, punct_lines, spacing_lines, seen = [], [], [], set()
     nospace = lambda s: re.sub(r"\s+", "", s)
+    nopunct = lambda s: re.sub(r"[\s.,…·∙•!?~\"'`()\[\]<>]+", "", s)
     for c in changed:
         for cur, want in _change_fragments(c["from"], c["to"]):  # from=원고, to=발행
             if cur and want and cur != want:
-                line, is_space = f"• {cur} → {want}", nospace(cur) == nospace(want)
+                line = f"• {cur} → {want}"
+                if nospace(cur) == nospace(want):
+                    bucket = spacing_lines
+                elif nopunct(cur) == nopunct(want):
+                    bucket = punct_lines
+                else:
+                    bucket = content_lines
             elif want and not cur:
-                line, is_space = f"• (추가) {want}", False
+                line, bucket = f"• (추가) {want}", content_lines
             elif cur and not want:
-                line, is_space = f"• (삭제) {cur}", False
+                line, bucket = f"• (삭제) {cur}", content_lines
             else:
                 continue
             if line in seen:
                 continue
             seen.add(line)
-            (spacing_lines if is_space else content_lines).append(line)
+            bucket.append(line)
 
     add_sec("문구 수정 (현재 → 수정)", content_lines)
-    add_sec("띄어쓰기·공백 (현재 → 수정)", spacing_lines)
+    add_sec("문장부호 수정 (현재 → 수정)", punct_lines)
     add_sec("발행에 누락 — 추가 필요", [f"• {d}" for d in deleted])
     add_sec("발행에만 있음 — 삭제 검토", [f"• {a}" for a in added])
     if approved_title:
         add_sec("제목 확인", [f"• 원고(심의) 제목: {approved_title}",
                            "• 발행 제목이 위와 다르면 함께 수정 요청"])
+    add_sec("띄어쓰기 통일 (현재 → 수정)", spacing_lines)
     if n[0] == 1:
         blocks.append("수정 사항 없음 — 발행본이 원고와 일치합니다.")
     return "\n".join(blocks).strip()

@@ -157,12 +157,14 @@ def render_compare(sheets):
         if _extra:
             st.caption(f"… 외 {_extra}건 더 있음 (유형별 상위 {LIMIT}건만 표시)")
 
-        # ✉️ 실행사 수정 요청 메일 양식 (복붙용)
-        st.markdown(ui.subhead("✉️", "수정 요청 메일 양식", "blue"), unsafe_allow_html=True)
-        st.caption("발행글을 원고(심의본)에 맞추기 위한 수정 요청입니다. 우측 상단 복사 버튼으로 복사해 실행사에 그대로 전달하세요.")
-        st.code(compare_engine.revision_request(
-            rep, blogger=st.session_state.get("cmp_sel_name", ""),
-            approved_title=st.session_state.get("cmp_sel_title", "")), language=None)
+        # ✉️ 실행사 수정 요청 메일 양식 (복붙용) — 접었다 펼치기
+        _blogger = st.session_state.get("cmp_sel_name", "")
+        with st.expander(f"✉️ 수정 요청 메일 양식{f' · {_blogger}' if _blogger else ''}  (클릭해서 펼치기)",
+                         expanded=False):
+            st.caption("발행글을 원고(심의본)에 맞추기 위한 수정 요청입니다. 우측 상단 복사 버튼으로 복사해 실행사에 전달하세요.")
+            st.code(compare_engine.revision_request(
+                rep, blogger=_blogger,
+                approved_title=st.session_state.get("cmp_sel_title", "")), language=None)
 
     # ===== 발행 링크 트래킹 코드 확인 =====
     st.divider()

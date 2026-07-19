@@ -63,3 +63,12 @@ def test_revision_request_no_change():
     from core import compare_engine as ce
     txt = ce.revision_request(ce.compare("같은 문장이에요.", "같은 문장이에요.", {}))
     assert "수정 사항 없음" in txt
+
+
+def test_revision_request_punctuation_category():
+    from core import compare_engine as ce
+    a = "무슨 일이 생기겠어 … 라는 생각이 들어요."   # 원고: … 있음
+    b = "무슨 일이 생기겠어 라는 생각이 들어요."      # 발행: … 없음
+    txt = ce.revision_request(ce.compare(a, b, {}), blogger="여름")
+    assert "문장부호 수정" in txt
+    assert "…" in txt   # 문장부호(…) 차이가 잡힘
