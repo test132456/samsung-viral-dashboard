@@ -115,7 +115,7 @@ def render_qa(sheets, claude=None):
     if cl:
         cs = qa_checklist.summary(cl)
         st.caption(f"✓ 충족 {cs['ok']} · △ 부분 {cs['warn']} · ✕ 미충족 {cs['fail']} · 통과율 {cs['pass_rate']}%  "
-                   f"· 가이드 '원고 작성 예시 플로우' 기준 (제목→유료광고→특약 보장문장→가입 링크→고지문구→해시태그)")
+                   f"· 가이드 '원고 작성 예시 플로우' 기준 (맞춤법→제목→유료광고→특약 보장문장→가입 링크→고지문구→해시태그)")
     else:
         st.caption("제목·원고 입력 후 '검수 실행'을 누르면 가이드 플로우 항목이 ✓ / △ / ✕ 로 채워집니다.")
 
@@ -198,9 +198,9 @@ def render_qa(sheets, claude=None):
 
     # --- 오탈자 검수 (as-is → to-be) ---
     if typos:
-        st.markdown(ui.subhead("🔤", "오탈자 검수", "red", stat=f"{len(typos)}건 · 확인 필요"),
+        st.markdown(ui.subhead("🔤", "맞춤법 검사 (오탈자)", "red", stat=f"{len(typos)}건 · 확인 필요"),
                     unsafe_allow_html=True)
-        st.markdown(ui.typo_detail(typos), unsafe_allow_html=True)
+        st.markdown(ui.typo_detail(typos, page_of=pg), unsafe_allow_html=True)
 
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:

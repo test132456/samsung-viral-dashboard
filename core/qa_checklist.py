@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 import re
-from core import qa_rules
+from core import qa_rules, typo
 
 HEAD_RATIO = 0.20         # 본문 '첫 부분(상단)' 비율
 TAIL_RATIO = 0.25         # 본문 '하단' 비율
@@ -17,6 +17,7 @@ _BENEFIT_RE = re.compile(r"가입금액한도")
 
 # 체크리스트 항목명 (evaluate/blank 공통, 가이드 플로우 순서)
 NAMES = [
+    "맞춤법 검사",
     "제목 키워드 시작",
     "유료광고 문안(상단)",
     "특약 보장문장",
@@ -42,7 +43,16 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
 
     items = []
 
-    # ① 제목 키워드 시작점
+    # ① 맞춤법 검사 (오탈자 사전)
+    _typos = typo.check_typos(body)
+    if not _typos:
+        items.append({"name": "맞춤법 검사", "status": "ok", "detail": "오탈자 없음"})
+    else:
+        _w = ", ".join(f'{t["as_is"]}→{t["to_be"]}' for t in _typos[:4])
+        _more = f" 외 {len(_typos) - 4}건" if len(_typos) > 4 else ""
+        items.append({"name": "맞춤법 검사", "status": "fail", "detail": f"{len(_typos)}건: {_w}{_more}"})
+
+    # ② 제목 키워드 시작점
     if title and any(title.startswith(k) for k in keywords):
         items.append({"name": "제목 키워드 시작", "status": "ok", "detail": "제목이 핵심 키워드로 시작"})
     elif title and any(k in title for k in keywords):
@@ -50,7 +60,7 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
     else:
         items.append({"name": "제목 키워드 시작", "status": "fail", "detail": "제목에 핵심 키워드 없음"})
 
-    # ② 유료광고 문안 (본문 첫 부분) — 공식블로그는 해당없음
+    # ③ 유료광고 문안 (본문 첫 부분) — 공식블로그는 해당없음
     if is_official:
         items.append({"name": "유료광고 문안(상단)", "status": "na", "detail": "공식블로그 · 해당없음"})
     elif "유료광고" in head or "원고료" in head or "광고비" in head:
@@ -60,7 +70,7 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
     else:
         items.append({"name": "유료광고 문안(상단)", "status": "fail", "detail": "유료광고 문안 없음"})
 
-    # ③ ★ 특약 보장문장 — 특약 보장 언급 시 '(담보명) 특약 가입 시, 가입 금액 한도로 보장' 문장 필수
+    # ④ ★ 특약 보장문장 — 특약 보장 언급 시 '(담보명) 특약 가입 시, 가입 금액 한도로 보장' 문장 필수
     n_benefit = len(_BENEFIT_RE.findall(body_norm))
     if "특약" not in body:
         items.append({"name": "특약 보장문장", "status": "warn", "detail": "특약 소개 문단이 없음"})
@@ -69,7 +79,7 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
     else:
         items.append({"name": "특약 보장문장", "status": "ok", "detail": f"보장문장 {n_benefit}곳"})
 
-    # ④ 원고 내 URL(가입 링크) — 심의 후 삽입 예정일 수 있어 없으면 △
+    # ⑤ 원고 내 URL(가입 링크) — 심의 후 삽입 예정일 수 있어 없으면 △
     urls = _URL_RE.findall(body)
     sf = [u for u in urls if "samsungfire.com" in u]
     if sf:
@@ -79,7 +89,7 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
     else:
         items.append({"name": "가입 링크(URL)", "status": "warn", "detail": "URL 없음 (심의 후 가입 링크 삽입 예정)"})
 
-    # ⑤ 고지문구 (하단 배치) — ref_required 중 '고지' 유형 기준
+    # ⑥ 고지문구 (하단 배치) — ref_required 중 '고지' 유형 기준
     gojib = [r for r in refs.get("required", []) if "고지" in str(r.get("type", ""))] \
         or refs.get("required", [])
     if not gojib:
@@ -94,7 +104,7 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
         else:
             items.append({"name": "고지문구(하단)", "status": "warn", "detail": "고지문구 있으나 하단 아님"})
 
-    # ⑥ 해시태그 (최하단 배치)
+    # ⑦ 해시태그 (최하단 배치)
     tags = _TAG_RE.findall(body)
     tail_tags = _TAG_RE.findall(tail)
     if not tags:

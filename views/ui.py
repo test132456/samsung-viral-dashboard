@@ -269,20 +269,21 @@ def rider_detail(rv: dict, ref_total: int, page_of=None) -> str:
     return f'<div class="vh-wrap">{summary}<div class="vh-chips">{chips}</div>{tail}</div>'
 
 
-def typo_detail(typos: list[dict]) -> str:
-    """오탈자 목록 — as-is(빨강 취소선) → to-be(초록) + 원고 근거."""
+def typo_detail(typos: list[dict], page_of=None) -> str:
+    """오탈자 목록 — as-is(빨강 취소선) → to-be(초록) + 몇 곳·원고 쪽수·근거."""
     if not typos:
         return ""
     rows = []
     for t in typos:
         snip = html.escape(t.get("snippet", ""))
+        loc = page_of(t["as_is"]) if page_of else ""
         rows.append(
             '<div style="padding:9px 13px;margin:6px 0;background:#fff5f5;border-left:4px solid #e23b3b;border-radius:9px">'
             '<div style="font-size:13.5px;font-weight:800;color:#16213d">'
             f'<span style="color:#c23636;text-decoration:line-through">{html.escape(t["as_is"])}</span>'
             ' <span style="color:#2563eb">→</span> '
             f'<span style="color:#1d7a4c">{html.escape(t["to_be"])}</span>'
-            f'<span style="font-size:11px;color:#8a94a6;font-weight:600"> · {t.get("count", 1)}곳</span></div>'
+            f'<span style="font-size:11px;color:#8a94a6;font-weight:600"> · {t.get("count", 1)}곳{loc}</span></div>'
             f'<div style="font-size:11.5px;color:#40506b;margin-top:5px">원고: “{snip}”</div></div>')
     return f'<div class="vh-wrap">{"".join(rows)}</div>'
 
