@@ -127,17 +127,20 @@ def all_text(file_bytes: bytes) -> str:
 
 
 def paragraph_pages(file_bytes: bytes) -> list[tuple[int, str]]:
-    """문단별 (추정 페이지, 텍스트). Word 의 lastRenderedPageBreak/페이지나눔 기준(추정).
-    Word 로 저장된 문서만 페이지 경계가 기록되며, 없으면 전부 1쪽으로 나온다."""
+    """문단별 (추정 페이지, 텍스트). 문서 body 전체를 '등장 순서'로 훑어
+    표(table)·본문 어디에 있든 페이지 나눔을 모두 센다(doc.paragraphs 는 표 안을 건너뜀).
+    Word 저장 시 남긴 페이지 표식(lastRenderedPageBreak)·수동 페이지나눔 기준이라
+    렌더링 환경(이미지·글꼴 등)에 따라 실제와 다를 수 있는 '추정'값이다."""
     doc = Document(io.BytesIO(file_bytes))
+    P, BR, LRPB, T, TYPE = (qn("w:p"), qn("w:br"), qn("w:lastRenderedPageBreak"),
+                            qn("w:t"), qn("w:type"))
     out, page = [], 1
-    for para in doc.paragraphs:
-        vis, _ = _para_parts(para)
-        out.append((page, vis))
-        p = para._p
-        brk = len(p.findall(".//" + qn("w:lastRenderedPageBreak")))
-        brk += sum(1 for b in p.findall(".//" + qn("w:br")) if b.get(qn("w:type")) == "page")
-        page += brk
+    for el in doc.element.body.iter():
+        tag = el.tag
+        if tag == LRPB or (tag == BR and el.get(TYPE) == "page"):
+            page += 1
+        elif tag == P:
+            out.append((page, "".join(t.text or "" for t in el.iter(T))))
     return out
 
 

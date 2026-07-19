@@ -118,7 +118,7 @@ def render_compare(sheets):
 
         def _pg(s):
             p = manuscript_parser.find_page(_pages, s) if _pages else None
-            return f' · 원고 {p}쪽' if p else ""
+            return f' · 원고 약 {p}쪽' if p else ""
 
         LIMIT = 15
         changed = [c for c in rep["changed_list"] if c["from"].strip() or c["to"].strip()]
@@ -129,6 +129,9 @@ def render_compare(sheets):
         st.markdown("###### 문장 비교 결과")
         st.caption("🔤 표시는 **띄어쓰기만 다른 항목(내용 동일·참고용)**입니다. 바뀐 공백은 **␣** 기호로 표시돼요."
                    + (f" · 띄어쓰기 차이 {_sp}건" if _sp else ""))
+        if _pages:
+            st.caption("📄 '원고 약 N쪽'은 **추정값**이에요(이미지·표가 많으면 실제와 몇 쪽 차이날 수 있음). "
+                       "정확히 찾으려면 원고에서 해당 **문장을 검색(Ctrl+F)**하세요.")
         if not (changed or deleted or added):
             st.success("원고와 발행본이 문장 단위로 일치합니다.")
         for ch in changed[:LIMIT]:
