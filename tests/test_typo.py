@@ -17,3 +17,41 @@ def test_no_typos():
 def test_typo_count():
     r = typo.check_typos("유렵 그리고 또 유렵")
     assert r[0]["as_is"] == "유렵" and r[0]["count"] == 2
+
+
+# --- 네이버 맞춤법 교정 diff (순수 함수) ---
+
+def test_diff_corrections_word_pairs():
+    # 원문 vs (네이버가 돌려줬다고 가정한) 교정문 → as_is→to_be 쌍
+    orig = "여행 준비물을 챙기고 출발햇어요."
+    corrected = "여행 준비물을 챙기고 출발했어요."
+    r = typo.diff_corrections(orig, corrected)
+    d = {x["as_is"]: x["to_be"] for x in r}
+    assert d.get("출발햇어요.") == "출발했어요."
+    assert all(x["count"] >= 1 and "context" in x for x in r)
+
+
+def test_diff_corrections_identical_is_empty():
+    assert typo.diff_corrections("같은 문장.", "같은 문장.") == []
+    assert typo.diff_corrections("문장.", "") == []
+
+
+def test_spellcheck_naver_none_is_safe():
+    # 네이버 실패(None)를 흉내 → diff 는 [] 여야 하고 예외가 없어야 함
+    assert typo.diff_corrections("아무 문장.", None) == []
+
+
+def test_diff_corrections_ignores_spacing_only():
+    # 띄어쓰기만 다른 교정(네이버 과교정)은 오탈자에서 제외
+    assert typo.diff_corrections("여행자보험을 챙겨요.", "여행자 보험을 챙겨요.") == []
+
+
+def test_clean_for_spell_strips_url_tag_legal():
+    txt = ("유렵 여행 https://www.samsungfire.com/travel 이메일 a@b.com\n"
+           "준법감시인확인필 제26-1-4731호 예금자보호\n"
+           "#삼성화재 #해외여행보험")
+    c = typo._clean_for_spell(txt)
+    assert "http" not in c and "@" not in c        # URL·이메일 제거
+    assert "#" not in c                             # 해시태그 제거
+    assert "준법감시인확인필" not in c              # 고지문구 줄 제거
+    assert "유렵" in c                              # 본문은 유지

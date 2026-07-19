@@ -32,8 +32,10 @@ def blank() -> list[dict]:
     return [{"name": n, "status": "pending", "detail": "검수 전"} for n in NAMES]
 
 
-def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> list[dict]:
-    """is_official=True(공식블로그)면 유료광고 문안은 '해당없음'(na) 처리."""
+def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
+             typos: list[dict] | None = None) -> list[dict]:
+    """is_official=True(공식블로그)면 유료광고 문안은 '해당없음'(na) 처리.
+    typos: 미리 계산한 오탈자 목록(사전+네이버). None이면 사전만으로 계산."""
     title = (title or "").strip()
     body = body or ""
     keywords = [k["keyword"] for k in refs.get("keywords", []) if k.get("type") == "키워드"]
@@ -43,8 +45,8 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
 
     items = []
 
-    # ① 맞춤법 검사 (오탈자 사전)
-    _typos = typo.check_typos(body)
+    # ① 맞춤법 검사 (오탈자 사전 + 네이버 맞춤법)
+    _typos = typo.check_typos(body) if typos is None else typos
     if not _typos:
         items.append({"name": "맞춤법 검사", "status": "ok", "detail": "오탈자 없음"})
     else:

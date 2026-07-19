@@ -6,6 +6,19 @@ from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guid
 from views import ui
 
 
+@st.cache_data(show_spinner=False)
+def _spellcheck(text: str) -> list[dict]:
+    """오탈자 = 사전(항상) + 네이버 맞춤법(가능하면). text 기준 캐시.
+    네이버가 막히거나 느리면 조용히 사전 결과만 반환한다."""
+    items = list(typo.check_typos(text))
+    for it in typo.naver_typos(text):  # 네이버(실패 시 [])
+        # 이미 사전/이전 항목이 같은 교정을 (조사만 다르게) 커버하면 건너뜀
+        dup = any(e["as_is"] in it["as_is"] and e["to_be"] in it["to_be"] for e in items)
+        if not dup and it["to_be"] not in it["as_is"]:
+            items.append(it)
+    return items[:60]
+
+
 def _refs_from_sheets(sheets) -> dict:
     banned = sheets.read(schema.SHEET_REF_BANNED)["term"].dropna().tolist()
     required = sheets.read(schema.SHEET_REF_REQUIRED).to_dict("records")
@@ -137,8 +150,11 @@ def render_qa(sheets, claude=None):
             if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
                 refs = {**refs, "required": [r for r in refs.get("required", [])
                                              if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
+            _typos = _spellcheck(text)  # 사전 + 네이버 맞춤법
+            st.session_state["qa_typos"] = _typos
             st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=None)
-            st.session_state["qa_checklist"] = qa_checklist.evaluate(title, text, refs, is_official=is_official)
+            st.session_state["qa_checklist"] = qa_checklist.evaluate(
+                title, text, refs, is_official=is_official, typos=_typos)
         finally:
             _ov.empty()
 
@@ -177,7 +193,7 @@ def render_qa(sheets, claude=None):
         terms_confirm = None
         if terms_data:
             terms_confirm = terms.confirmed_count(ref_riders, _terms_text(terms_data, terms_name))
-        typos = typo.check_typos(text)
+        typos = st.session_state.get("qa_typos") or typo.check_typos(text)
         rs = report.get("required_status", [])
         # 원고 쪽수(추정) — 잘못된 부분 위치 표시용 (워드 업로드 시)
         pages = (_doc_pages(up.getvalue())
@@ -235,6 +251,7 @@ def render_qa(sheets, claude=None):
         st.markdown(ui.subhead("🔤", "맞춤법 검사 (오탈자)", "red", stat=f"{len(typos)}건 · 확인 필요"),
                     unsafe_allow_html=True)
         st.markdown(ui.typo_detail(typos, page_of=pg), unsafe_allow_html=True)
+        st.caption("오타 사전 + 네이버 맞춤법 검사기 기준 · 문맥상 맞는 표현이면 무시하세요")
 
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:
