@@ -36,15 +36,19 @@ TYPOS = {
 
 
 def check_typos(text: str) -> list[dict]:
-    """원고에서 오타 사전에 걸리는 표기를 찾아 [{as_is, to_be, count, snippet}] 반환."""
+    """원고에서 오타 사전에 걸리는 표기를 찾아 [{as_is, to_be, count, context}] 반환.
+    context = 오타가 들어있는 '줄 전체'(길면 오타 주변만 잘라 …로 표시)."""
     text = text or ""
+    lines = text.split("\n")
     out = []
     for bad, good in TYPOS.items():
         if bad == good or bad not in text:
             continue
-        idx = text.find(bad)
         cnt = text.count(bad)
-        s, e = max(0, idx - 12), min(len(text), idx + len(bad) + 12)
-        snippet = ("…" if s > 0 else "") + text[s:e].replace("\n", " ").strip() + ("…" if e < len(text) else "")
-        out.append({"as_is": bad, "to_be": good, "count": cnt, "snippet": snippet})
+        ctx = next((ln.strip() for ln in lines if bad in ln), bad)
+        if len(ctx) > 110:  # 너무 긴 줄은 오타 주변만
+            i = ctx.find(bad)
+            s, e = max(0, i - 45), min(len(ctx), i + len(bad) + 45)
+            ctx = ("…" if s > 0 else "") + ctx[s:e].strip() + ("…" if e < len(ctx) else "")
+        out.append({"as_is": bad, "to_be": good, "count": cnt, "context": ctx})
     return out

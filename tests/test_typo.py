@@ -7,7 +7,7 @@ def test_check_typos_finds_and_maps():
     assert d.get("유렵") == "유럽"
     assert d.get("스케쥴") == "스케줄"
     assert d.get("되요") == "돼요"
-    assert all("snippet" in x and x["count"] >= 1 for x in r)
+    assert all("context" in x and x["count"] >= 1 for x in r)
 
 
 def test_no_typos():
