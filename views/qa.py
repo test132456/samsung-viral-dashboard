@@ -23,7 +23,9 @@ def _read_docx(file) -> str:
 
 
 def _load_upload(up):
-    """업로드 파일 → (title_default, text_default, url). docx는 다중 원고 분리+블로거 선택."""
+    """업로드 파일 → (title_default, text_default, url). docx는 다중 원고 분리+블로거 선택.
+    선택한 블로거명은 st.session_state['qa_blogger_name']에 저장(수정요청 양식용)."""
+    st.session_state["qa_blogger_name"] = ""
     if up is None:
         return "", "", ""
     data = up.getvalue()
@@ -42,8 +44,40 @@ def _load_upload(up):
         st.caption(f"✅ **{sec['name'] or '원고'}** 자동 추출" + (f" · 표기 URL: {sec['url']}" if sec['url'] else ""))
         if sec.get("deleted"):
             st.markdown(ui.deleted_html(sec["deleted"]), unsafe_allow_html=True)
+        st.session_state["qa_blogger_name"] = sec.get("name", "")
         return sec["title"], sec["body"], sec["url"]
     return "", manuscript_parser.all_text(data), ""
+
+
+def _qa_revision(blogger, typos, gc, rv, report, gojib, paid, is_official):
+    """심의전 검수 발견사항 → 실행사 수정 요청 문구(복붙용)."""
+    blocks = [f"<수정 요청 (심의 전) · {blogger}>" if blogger else "<수정 요청 (심의 전)>", ""]
+    n = [1]
+
+    def sec(title, lines):
+        lines = [x for x in lines if x]
+        if lines:
+            blocks.append(f"{n[0]}. {title}")
+            blocks.extend(lines)
+            blocks.append("")
+            n[0] += 1
+
+    sec("맞춤법·오탈자 (현재 → 수정)", [f"• {t['as_is']} → {t['to_be']}" for t in typos])
+    banned = [f"• '{b}' 표현 삭제/순화" for b in (gc["banned_hits"] if gc else [])]
+    banned += [f"• '{b['term']}' 표현 삭제/순화" for b in report.get("banned", [])]
+    sec("표현불가 문구 (삭제/순화)", list(dict.fromkeys(banned)))
+    sec("특약명 정정 (정식명으로 표기)", [f"• {m}" for m in rv.get("mismatch", [])])
+    miss = []
+    if not is_official and paid and not paid.get("present"):
+        miss.append("• 유료광고 문안 추가 (본문 상단)")
+    if gojib and not gojib.get("present"):
+        miss.append("• 고지문구 추가 (본문 하단)")
+    if gc and gc.get("tags_missing"):
+        miss.append("• 누락 해시태그 추가: " + " ".join(gc["tags_missing"]))
+    sec("필수 항목 누락 (추가 필요)", miss)
+    if n[0] == 1:
+        blocks.append("수정 사항 없음 — 원고가 기준에 부합합니다.")
+    return "\n".join(blocks).strip()
 
 
 @st.cache_data(show_spinner=False)
@@ -233,8 +267,13 @@ def render_qa(sheets, claude=None):
             st.markdown(ui.group_label(grp), unsafe_allow_html=True)
             st.markdown(ui.evidence_checklist(gi), unsafe_allow_html=True)
 
-    # --- 키워드 / AI ---
+    # --- 키워드 ---
     if report["missing_keywords"]:
         st.info("필수 키워드 누락: " + ", ".join(report["missing_keywords"]))
-    for f in report["ai_findings"]:
-        st.warning(f"AI: {f.get('snippet','')} — {f.get('reason','')} → {f.get('suggestion','')}")
+
+    # ✉️ 수정 요청 양식 (심의 전) — 접이식, 발견사항을 실행사에 전달용
+    st.divider()
+    _bn = st.session_state.get("qa_blogger_name", "")
+    with st.expander(f"✉️ 수정 요청 양식 (심의 전){f' · {_bn}' if _bn else ''}  (클릭해서 펼치기)", expanded=False):
+        st.caption("검수에서 발견된 사항을 실행사에 보낼 수정 요청입니다. 복사 버튼으로 복사해 전달하세요.")
+        st.code(_qa_revision(_bn, typos, gc, rv, report, gojib, paid, is_official), language=None)
