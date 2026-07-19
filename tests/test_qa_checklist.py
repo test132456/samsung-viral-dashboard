@@ -96,3 +96,11 @@ def test_spellcheck_flow_step(refs):
     # 오탈자 없으면 ok
     ok = {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", "정상 본문입니다", refs)}
     assert ok["맞춤법 검사"]["status"] == "ok"
+
+
+def test_spellcheck_flow_naver_blocked_is_warn(refs):
+    # 네이버 차단(naver_ok=False) + 사전 오탈자 없음 → 초록 'ok'가 아니라 '△ warn'으로 정직하게
+    blocked = {i["name"]: i for i in qa_checklist.evaluate(
+        "해외여행보험", "정상 본문입니다", refs, typos=[], naver_ok=False)}
+    assert blocked["맞춤법 검사"]["status"] == "warn"
+    assert "네이버" in blocked["맞춤법 검사"]["detail"]

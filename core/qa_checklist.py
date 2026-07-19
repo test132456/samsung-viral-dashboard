@@ -33,9 +33,10 @@ def blank() -> list[dict]:
 
 
 def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
-             typos: list[dict] | None = None) -> list[dict]:
+             typos: list[dict] | None = None, naver_ok: bool | None = None) -> list[dict]:
     """is_official=True(공식블로그)면 유료광고 문안은 '해당없음'(na) 처리.
-    typos: 미리 계산한 오탈자 목록(사전+네이버). None이면 사전만으로 계산."""
+    typos: 미리 계산한 오탈자 목록(사전+네이버). None이면 사전만으로 계산.
+    naver_ok: 네이버 맞춤법이 실제로 돌았는지. False면 '사전만' 검사라 임의 오타는 미확인."""
     title = (title or "").strip()
     body = body or ""
     keywords = [k["keyword"] for k in refs.get("keywords", []) if k.get("type") == "키워드"]
@@ -48,7 +49,11 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
     # ① 맞춤법 검사 (오탈자 사전 + 네이버 맞춤법)
     _typos = typo.check_typos(body) if typos is None else typos
     if not _typos:
-        items.append({"name": "맞춤법 검사", "status": "ok", "detail": "오탈자 없음"})
+        if naver_ok is False:  # 네이버 차단 → 사전만 돌아 임의 오타는 확인 못 함
+            items.append({"name": "맞춤법 검사", "status": "warn",
+                          "detail": "사전 기준 이상 없음 · 네이버 차단으로 임의 오타는 미확인(로컬 실행 권장)"})
+        else:
+            items.append({"name": "맞춤법 검사", "status": "ok", "detail": "오탈자 없음"})
     else:
         _w = ", ".join(f'{t["as_is"]}→{t["to_be"]}' for t in _typos[:4])
         _more = f" 외 {len(_typos) - 4}건" if len(_typos) > 4 else ""

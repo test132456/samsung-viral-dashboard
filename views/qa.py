@@ -159,7 +159,7 @@ def render_qa(sheets, claude=None):
             st.session_state["qa_naver_ok"] = _naver_ok
             st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=None)
             st.session_state["qa_checklist"] = qa_checklist.evaluate(
-                title, text, refs, is_official=is_official, typos=_typos)
+                title, text, refs, is_official=is_official, typos=_typos, naver_ok=_naver_ok)
         finally:
             _ov.empty()
 
