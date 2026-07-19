@@ -57,6 +57,28 @@ def verify_usage(manuscript: str, ref_names: list[str]) -> dict:
             "ok_count": len(ok), "mismatch_count": len(mismatch)}
 
 
+_TERMS_STOP = {"여행중", "보상", "보상금", "추가비용", "재발급비용", "특약", "국내", "출국",
+               "제외", "지수형", "이상", "시간", "일이상", "입원", "손해", "손실", "분실제외",
+               "보험", "여행", "및"}
+
+
+def _core_tokens(name: str) -> list[str]:
+    """특약명에서 표기 차이에 강한 핵심어만 추출(괄호·일반어 제거)."""
+    core = re.sub(r"[()（）]", " ", name or "")
+    return [t for t in re.split(r"[\s·]+", core) if len(t) >= 2 and t not in _TERMS_STOP]
+
+
+def confirmed_count(riders: list[str], terms_text: str) -> int:
+    """정식 특약명들이 약관에서 확인되는지 — 핵심어가 모두 등장하면 확인(표기 차이 허용)."""
+    raw = _norm(terms_text)
+    n = 0
+    for r in riders:
+        ts = _core_tokens(r)
+        if ts and all(t in raw for t in ts):
+            n += 1
+    return n
+
+
 def coverage(manuscript: str, official: list[str]) -> dict:
     """약관 정식 특약명이 원고에 정확히(그대로) 들어있는지 대조.
     included=원고에 정확히 표기된 약관 특약명 / missing=원고에 없는 약관 특약명."""

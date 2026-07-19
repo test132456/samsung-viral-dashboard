@@ -139,11 +139,10 @@ def render_qa(sheets, claude=None):
         ref_riders = guide_riders or guide.DEFAULT_RIDERS
         rider_src = "가이드" if guide_riders else "가이드 기본"
         rv = terms.verify_usage(text, ref_riders)
-        # (선택) 약관이 있으면 정식 특약명이 약관에서도 확인되는지 교차확인
+        # (선택) 약관이 있으면 정식 특약명이 약관에서도 확인되는지 교차확인(핵심어 기준)
         terms_confirm = None
         if terms_data:
-            rawn = terms._norm(_terms_text(terms_data, terms_name))
-            terms_confirm = sum(1 for r in ref_riders if terms._norm(r) in rawn)
+            terms_confirm = terms.confirmed_count(ref_riders, _terms_text(terms_data, terms_name))
         typos = typo.check_typos(text)
         rs = report.get("required_status", [])
         # 원고 쪽수(추정) — 잘못된 부분 위치 표시용 (워드 업로드 시)

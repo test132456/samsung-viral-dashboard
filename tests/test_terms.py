@@ -56,3 +56,13 @@ def test_verify_usage_sibling_not_flagged():
     rv = terms.verify_usage(ms, ref)
     assert ref[0] in rv["ok"]
     assert rv["mismatch"] == []      # 형제 특약을 오기로 잡지 않음
+
+
+def test_confirmed_count_lenient():
+    from core import terms
+    riders = ["항공기 지연 결항 보상(지수형)(국내 출국) 특약",
+              "여행중 여권분실 재발급비용 특약"]
+    # 약관은 표기가 조금 달라도 핵심어가 있으면 확인
+    terms_text = "제10조 항공기 지연 및 결항 보상 ... 여권 분실 재발급 비용을 보상 ..."
+    assert terms.confirmed_count(riders, terms_text) == 2
+    assert terms.confirmed_count(riders, "관련 없는 약관 텍스트") == 0

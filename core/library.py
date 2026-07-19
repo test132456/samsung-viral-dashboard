@@ -11,7 +11,7 @@ import time
 
 _DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "reference")
 
-_TERMS_PATTERNS = ["약관*.pdf", "약관*.docx", "약관*.txt", "terms*.pdf", "terms*.docx", "terms*.txt"]
+_TERMS_PATTERNS = ["*약관*.pdf", "*약관*.docx", "*약관*.txt", "*terms*.pdf", "*terms*.docx", "*terms*.txt"]
 _GUIDE_PATTERNS = ["*가이드*.pptx", "*guide*.pptx", "*.pptx"]
 
 

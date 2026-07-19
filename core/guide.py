@@ -43,32 +43,32 @@ DEFAULT_RIDERS = [
 ]
 
 
+_RIDER_SEP = "[" + chr(10) + chr(13) + chr(11) + chr(12) + "]+"  # 개행·수직탭 등
+_RIDER_NOISE = ("확인", "정확", "소구", "담보명", "약관에서", "포인트", "메인")
+
+
 def _extract_riders(text: str) -> list[str]:
-    """가이드 '메인 담보명/특약명' 표에서 '...특약' 정식명 추출.
-    담보명 섹션 헤더를 못 찾으면 [] (약관 PDF로 대체)."""
-    m = _RIDER_SECTION_RE.search(text or "")
-    if not m:
+    """가이드 '메인 담보명' 표에서 정식 특약명 추출.
+    표 각 행의 첫 칸(| 기준)이 '…특약'으로 끝나는 것만 담보명으로 본다.
+    → '출국 항공기 지연 손해 특약 제외'(제외로 끝남)·안내문·소구문구 등은 자동 배제.
+    담보명 섹션 헤더/표가 없으면 [] (호출부에서 기본값으로 대체)."""
+    if "담보명" not in (text or ""):
         return []
-    section = text[m.end():]
-    section = re.split(r"\n\s*\[", section, maxsplit=1)[0]  # 다음 [대괄호 섹션] 직전까지
-    _NOISE = ("확인", "정확", "소구", "담보명", "약관에서", "포인트", "메인")
     out, seen = [], set()
-    for chunk in re.split(r"[\n\r|]+", section):
-        line = chunk.strip().strip("★").strip()
-        if "특약" not in line:
+    for raw in re.split(_RIDER_SEP, text):  # PPT 셀 줄바꿈=수직탭
+        cell = raw.split("|")[0].strip().strip("★").strip()
+        cell = re.sub(r"^\s*(?:제?\s*\d+\s*[.)관조항호]|[·•\-*])\s*", "", cell).strip()
+        if not cell.endswith("특약"):           # 이름은 반드시 '특약'으로 끝남
             continue
-        mm = re.search(r"(.{3,60}?특약)(?!명)", line)  # '특약명'(헤더/안내문)은 제외
-        if not mm:
+        if not (4 <= len(cell) <= 45):
             continue
-        name = re.sub(r"^\s*(?:제?\s*\d+\s*[.)관조항호]|[·•\-*★])\s*", "", mm.group(1)).strip()
-        if not (4 <= len(name) <= 60) or name in seen or name in ("특약", "메인 특약"):
+        if any(w in cell for w in _RIDER_NOISE):
             continue
-        if any(w in name for w in _NOISE):  # 안내문/헤더 문구 제거
+        if not any(t in cell for t in _RIDER_TOKENS):
             continue
-        if not any(t in name for t in _RIDER_TOKENS):  # 담보 키워드 없는 조각(이 특약 등) 제거
-            continue
-        seen.add(name)
-        out.append(name)
+        if cell not in seen:
+            seen.add(cell)
+            out.append(cell)
     return out
 
 
