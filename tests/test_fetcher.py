@@ -68,3 +68,11 @@ def test_extract_links_and_candidates():
     assert "https://tinyurl.com/abc123" in cands
     assert any("samsungfire.com" in c for c in cands)
     assert not any("blog.naver.com" in c for c in cands)  # 내부 링크는 후보 제외
+
+
+def test_resolve_redirects_shortcircuits_on_utm_term():
+    from core import fetcher
+    # URL에 이미 utm_term 이 있으면 네트워크 접속 없이 그대로 반환(광고주 서버 타임아웃 회피)
+    u = "https://direct.samsungfire.com/vd/overture_index.jsp?OTK=x&utm_source=naver&utm_term=F2606VR0030"
+    assert fetcher.resolve_redirects(u) == u
+    assert fetcher.parse_link_params(u)["term"] == "F2606VR0030"

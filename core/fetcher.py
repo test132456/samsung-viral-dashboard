@@ -2,7 +2,7 @@
 from __future__ import annotations
 import re
 import requests
-from urllib.parse import urlparse, parse_qsl
+from urllib.parse import urlparse, parse_qsl, urljoin
 from bs4 import BeautifulSoup
 
 _UA = "Mozilla/5.0"
@@ -34,15 +34,26 @@ def parse_link_params(url: str) -> dict:
     return {"params": q, "key": key, "term": term}
 
 
-def resolve_redirects(url: str, timeout: int = 8) -> str:
-    """단축/리다이렉트 링크의 최종 URL 반환(네트워크)."""
+def resolve_redirects(url: str, timeout: int = 8, max_hops: int = 10) -> str:
+    """단축/리다이렉트 링크를 한 홉씩 '수동으로' 따라가 최종 URL 반환.
+    - 리다이렉트 주소(Location)에 이미 utm_term 이 보이면 즉시 멈춘다
+      → 최종 목적지(광고주 서버, 접속이 느리거나 막히는 곳)에는 접속하지 않는다.
+    - 실패해도 예외를 던지지 않고 여기까지 따라온 URL을 반환(그 안에 코드가 있을 수 있음)."""
+    cur = url or ""
     try:
-        r = requests.head(url, allow_redirects=True, timeout=timeout, headers={"User-Agent": _UA})
-        if r.status_code >= 400 or r.url == url:
-            r = requests.get(url, allow_redirects=True, timeout=timeout, headers={"User-Agent": _UA})
-        return r.url or url
-    except requests.RequestException as e:
-        raise FetchError(f"링크 확인 실패: {e}") from e
+        for _ in range(max_hops):
+            if "utm_term=" in cur:            # 이미 추적코드가 URL에 있음 → 더 볼 필요 없음
+                return cur
+            r = requests.get(cur, allow_redirects=False, stream=True, timeout=timeout,
+                             headers={"User-Agent": _UA})
+            loc = r.headers.get("Location")
+            r.close()                          # 본문은 받지 않음(헤더만)
+            if not loc:
+                return cur                     # 더 이상 리다이렉트 없음
+            cur = urljoin(cur, loc)            # 상대경로 Location 대응
+        return cur
+    except requests.RequestException:
+        return cur                             # 타임아웃/차단 시 최선의 URL 반환
 
 
 def extract_text(html: str) -> str:

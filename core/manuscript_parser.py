@@ -141,15 +141,27 @@ def paragraph_pages(file_bytes: bytes) -> list[tuple[int, str]]:
     return out
 
 
+def _match_key(s: str) -> str:
+    """매칭용 정규화: 해시태그 제거 후 한글/영숫자만 남김(공백·문장부호 전부 제거).
+    비교 문장은 마침표·해시태그가 이미 빠져 있어, 원문 문단과 맞추려면 양쪽을 같은 기준으로 정규화해야 함."""
+    s = re.sub(r"#[0-9A-Za-z가-힣_]+", "", s or "")
+    return re.sub(r"[^0-9A-Za-z가-힣]", "", s)
+
+
 def find_page(pages: list[tuple[int, str]], needle: str) -> int | None:
-    """needle(공백 무시)이 처음 등장하는 문단의 추정 페이지."""
+    """needle 이 처음 등장하는 문단의 추정 페이지(문장부호·해시태그·공백 무시).
+    여러 문장이 합쳐진 needle 도 앞부분(probe)으로 매칭해 위치를 잡는다."""
     if not needle or not pages:
         return None
-    key = re.sub(r"\s+", "", needle)
+    key = _match_key(needle)
     if not key:
         return None
+    probe = key[:20]
     for page, text in pages:
-        if key in re.sub(r"\s+", "", text):
+        t = _match_key(text)
+        if not t:
+            continue
+        if key in t or (len(probe) >= 8 and probe in t):
             return page
     return None
 

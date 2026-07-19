@@ -89,3 +89,12 @@ def test_find_page_returns_page():
     pages = manuscript_parser.paragraph_pages(b.getvalue())
     assert manuscript_parser.find_page(pages, "첫 페이지") == 1
     assert manuscript_parser.find_page(pages, "없는문구") is None
+
+
+def test_find_page_ignores_punctuation_hashtag_and_multi_sentence():
+    # 원문 문단엔 마침표·해시태그가 있고, 비교문장은 여러 문장이 마침표 없이 합쳐진 형태
+    pages = [(1, "국젯선 유류할증료가 인하되고 일봉 여행 가는 사람들이 늘어나고 있어요. #해외여행보험"),
+             (2, "여행자 보험을 팻스하는 경우가 많은데요.")]
+    n_multi = "국젯선 유류할증료가 인하되고 일봉 여행 가는 사람들이 늘어나고 있어요 해외여행보험"
+    assert manuscript_parser.find_page(pages, n_multi) == 1     # 마침표/해시태그 무시하고 매칭
+    assert manuscript_parser.find_page(pages, "여행자 보험을 팻스하는 경우가 많은데요") == 2
