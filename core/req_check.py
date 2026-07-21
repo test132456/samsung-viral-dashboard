@@ -9,6 +9,8 @@ import re
 
 _URL_RE = re.compile(r"https?://[^\s)\]]+")
 _TAG_RE = re.compile(r"#[가-힣A-Za-z0-9_]+")
+# 원고에 실제 URL 대신 '링크 삽입' 자리표시 문구가 있으면 링크 요건 충족으로 인정(심의 후 삽입)
+_LINK_PLACEHOLDER = re.compile(r"(?:링크|url|URL)\s*삽입|링크\s*(?:넣|추가|자리|기입|삽입 예정)|삽입\s*예정.{0,6}링크")
 
 BRAND = "삼성화재 다이렉트"
 PRODUCT = "해외여행보험"
@@ -123,6 +125,8 @@ def evaluate(title: str, body: str, is_official: bool = False,
         add(G1, "허용 상품 링크만 사용", "fail", "삼성화재 외 링크 발견" + _pg(foreign[0]), _esc(foreign[0]))
     elif links:
         add(G1, "허용 상품 링크만 사용", "ok", "삼성화재 링크만 사용", _esc(links[0]))
+    elif _LINK_PLACEHOLDER.search(body):
+        add(G1, "허용 상품 링크만 사용", "ok", "‘링크 삽입’ 표기 확인 (심의 후 삽입 예정)")
     else:
         add(G1, "허용 상품 링크만 사용", "warn", "링크 없음 (심의 후 삽입 예정 가능)")
 

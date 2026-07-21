@@ -54,6 +54,15 @@ def test_keyword_count_three_or_more_ok():
     assert by6["'해외여행보험' 키워드 3개 이상"]["status"] == "ok"      # 예전엔 warn, 이제 ok
 
 
+def test_link_placeholder_counts_as_ok():
+    # '링크 삽입' 자리표시 문구가 있으면 링크 없어도 충족(ok)
+    ok = {i["name"]: i for i in req_check.evaluate("t", "가입은 아래 링크 삽입 예정입니다.")}
+    assert ok["허용 상품 링크만 사용"]["status"] == "ok"
+    # 자리표시도 실제 링크도 없으면 warn 유지
+    warn = {i["name"]: i for i in req_check.evaluate("t", "가입하세요 좋은 상품입니다.")}
+    assert warn["허용 상품 링크만 사용"]["status"] == "warn"
+
+
 def test_official_blog_paid_ad_na():
     items = req_check.evaluate("해외여행보험", "본문", is_official=True)
     by = {i["name"]: i for i in items}
