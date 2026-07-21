@@ -12,9 +12,11 @@ import re
 _SUPERLATIVES = ["최고", "최상", "최강", "최적", "무조건", "유일", "완벽", "100%"]
 _SUP_BOUNDARY = ["가장", "제일"]      # 뒤에 공백이 와야 최상급(가장자리·제일교회 등 제외)
 
-# #1 단정적 인과: 원인 연결어 + 부정적 결과 (예: "음식 섭취로 인해 식중독에 걸렸다")
+# #1 단정적 인과: (a) 원인 연결어+부정적 결과, (b) 서술형(먹고→식중독) — 음식이 원인이라 단정하는 맥락
 _CAUSE = r"(?:로 인해|로 인한|때문에|탓에|때문인)"
-_OUTCOME = r"(걸렸|걸린|걸립|발병|감염|사망|생겼|생긴|유발|초래|악화|부작용)"
+_OUTCOME = r"(걸렸|걸린|걸립|발병|감염|사망|생겼|생긴|유발|초래|악화|부작용|식중독|배탈|장염)"
+_EAT = r"(?:먹었|먹고|먹은|먹더니|드셨|드시고|섭취)"          # 음식 섭취 서술
+_ILL = r"(?:식중독|배탈|장염|탈이\s?났|탈이\s?나|탈이\s?생)"    # 뒤따르는 질병
 
 # #5 지급제한 안내 판단용 키워드
 _BENEFIT_KW = ["보장", "보상", "지급"]
@@ -64,12 +66,25 @@ def check_vague_deung(text: str) -> list[dict]:
 
 
 def check_causal_assertion(text: str) -> list[dict]:
-    """#1 단정적 인과 표현(후보). 원인 연결어 + 부정적 결과."""
+    """#1 단정적 인과 표현(후보).
+    (a) 원인 연결어 + 부정적 결과, (b) 서술형: '먹었…식중독'처럼 음식→질병을 암시하는 맥락."""
     text = text or ""
-    out = []
-    pat = re.compile(r"[^.\n]{0,22}" + _CAUSE + r"[^.\n]{0,22}?" + _OUTCOME + r"[^.\n]{0,3}")
-    for m in pat.finditer(text):
-        out.append({"hit": "단정적 인과", "context": _ctx(text, m.start(), m.end(), pad=4)})
+    spans = []
+    # (a) 명시적 인과: 원인 연결어 + 부정적 결과
+    for m in re.finditer(r"[^.\n]{0,22}" + _CAUSE + r"[^.\n]{0,22}?" + _OUTCOME + r"[^.\n]{0,3}", text):
+        spans.append(m.span())
+    # (b) 서술형: 음식 섭취 → 질병 (단, '상비약 먹고'처럼 음식이 아닌 경우는 제외)
+    for m in re.finditer(_EAT + r"[^.]{0,60}?" + _ILL, text):
+        if "약" in text[max(0, m.start() - 5):m.start()]:   # 약 먹고 → 음식 아님
+            continue
+        spans.append(m.span())
+    spans.sort()
+    out, last_end = [], -1
+    for s, e in spans:
+        if s < last_end:      # 겹치는 매치는 하나만
+            continue
+        out.append({"hit": "단정적 인과", "context": _ctx(text, s, e, pad=6)})
+        last_end = e
     return out
 
 

@@ -194,21 +194,17 @@ def evaluate(title: str, body: str, is_official: bool = False,
     else:
         add(G3, "정확한 담보명 기재", "warn", "원고에서 특약 언급 없음")
 
-    # 10) ★ 할인 중복적용 순서 — '동반가입할인 > 재가입할인 > 중복적용 가능' 순
-    i_d, i_j = body.find("동반가입"), body.find("재가입")
-    i_o = body.find("중복적용")
-    if i_o < 0:
-        i_o = body.find("중복 적용")
-    if i_o < 0:
+    # 10) ★ 할인 중복적용 순서 — '동반가입 → 재가입 → 중복적용'이 한 서술로 이어지면 충족(띄어쓰기 무시).
+    #     (전체 문서 첫 등장 위치로 비교하면, 앞쪽의 다른 언급 때문에 순서가 틀리게 잡혀 오탐 발생)
+    _order = re.search(r"동반\s*가입[^.]{0,80}재\s*가입[^.]{0,60}중복\s*적용", body)
+    if not re.search(r"중복\s*적용", body):
         add(G3, "할인 중복적용 순서", "na", "중복적용 언급 없음 · 해당없음")
-    elif i_d >= 0 and i_j >= 0 and i_d < i_j < i_o:
+    elif _order:
         add(G3, "할인 중복적용 순서", "ok", "동반가입 > 재가입 > 중복적용 순", _snip(body, "중복"))
-    elif i_d >= 0 and i_j >= 0:
-        add(G3, "할인 중복적용 순서", "fail",
-            "순서 오류 — '동반가입할인 > 재가입할인 > 중복적용 가능' 순으로 기입" + _pg("중복적용"),
-            _snip(body, "중복"))
     else:
-        add(G3, "할인 중복적용 순서", "warn", "동반가입·재가입 할인 언급 확인 필요", _snip(body, "중복"))
+        add(G3, "할인 중복적용 순서", "warn",
+            "'동반가입할인 > 재가입할인 > 중복적용' 순서로 이어지는지 확인" + _pg("중복"),
+            _snip(body, "중복"))
 
     # 11) 기타 혜택 소구 (참고) — 사용된 혜택 안내 (필수 아님)
     used = [name for name, kws in BENEFITS.items() if any(k in body for k in kws)]

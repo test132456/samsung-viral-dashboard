@@ -84,14 +84,17 @@ def test_official_blog_paid_ad_na():
 
 
 def test_discount_order_rule():
-    # 올바른 순서: 동반가입 > 재가입 > 중복적용
+    # 올바른 순서: 동반가입 > 재가입 > 중복적용 (띄어쓰기·중간 문구 있어도 인정)
     ok_body = "동반가입할인 10%, 재가입할인 5%, 중복적용 가능합니다."
     by_ok = {i["name"]: i for i in req_check.evaluate("t", ok_body)}
     assert by_ok["할인 중복적용 순서"]["status"] == "ok"
-    # 잘못된 순서
+    # 실제 원고 문장 형태(띄어쓰기·줄바꿈 포함)도 충족
+    real = "동반가입 할인은\n재가입 할인과 중복 적용된답니다."
+    assert {i["name"]: i for i in req_check.evaluate("t", real)}["할인 중복적용 순서"]["status"] == "ok"
+    # 순서가 이어지지 않으면 warn(확인 필요) — 하드 fail 아님(오검 방지)
     bad_body = "재가입할인 먼저, 동반가입할인 나중, 중복적용 가능"
     by_bad = {i["name"]: i for i in req_check.evaluate("t", bad_body)}
-    assert by_bad["할인 중복적용 순서"]["status"] == "fail"
+    assert by_bad["할인 중복적용 순서"]["status"] == "warn"
     # 중복적용 미언급 → na
     by_na = {i["name"]: i for i in req_check.evaluate("t", "혜택 설명 없음")}
     assert by_na["할인 중복적용 순서"]["status"] == "na"

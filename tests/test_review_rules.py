@@ -26,6 +26,16 @@ def test_causal_assertion():
     assert rr.check_causal_assertion("여행 준비물을 챙겼다.") == []
 
 
+def test_causal_narrative_food_illness():
+    # 명시적 인과어 없이 '먹었 … 식중독' 서술도 잡음(음식→식중독 단정 암시)
+    narr = "고기며 라멘 막 먹었었거든요? 근데 다음날 병원 가보니 식중독이라는 거 있죠"
+    assert len(rr.check_causal_assertion(narr)) >= 1
+    # '상비약 먹고'는 음식이 아니므로 제외(오탐 방지)
+    assert rr.check_causal_assertion("상비약만 먹고 버텼는데 동생이 식중독 증상이었대요") == []
+    # 일반 식중독 보장 설명(섭취 서술 없음)은 안 잡음
+    assert rr.check_causal_assertion("식중독 보장 특약으로 대비하세요.") == []
+
+
 def test_rider_naming_needs_특약():
     riders = ["항공기 지연 결항 보상(지수형)(국내 출국) 특약"]
     # 정식명(핵심어 + 괄호부기 + 특약)으로 쓰면 통과
