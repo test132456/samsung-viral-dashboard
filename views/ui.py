@@ -247,7 +247,29 @@ def banned_detail(banned: list[str], manuscript: str, page_of=None) -> str:
             chips += f'<span class="vh-cf">✕ {b}{page_of(b) if page_of else ""}</span>'
         else:
             chips += f'<span class="vh-cp">✓ {b}</span>'
-    return f'<div class="vh-wrap">{summary}<div class="vh-chips">{chips}</div></div>'
+    # 사용된 표현의 문맥(문장) — '모두'·'자주'처럼 문맥에 따라 정상일 수 있어 눈으로 확인
+    ctx_rows = ""
+    for b in used:
+        start, occ = 0, 0
+        while occ < 2:
+            i = ms.find(b, start)
+            if i < 0:
+                break
+            s, e = max(0, i - 32), min(len(ms), i + len(b) + 32)
+            eb = html.escape(b)
+            seg = html.escape(ms[s:e].replace("\n", " ").strip()).replace(
+                eb, f'<span style="color:#c23636;font-weight:800;background:#ffdada;'
+                    f'border-radius:3px;padding:0 2px">{eb}</span>')
+            frag = ("…" if s > 0 else "") + seg + ("…" if e < len(ms) else "")
+            ctx_rows += ('<div style="font-size:12px;color:#40506b;line-height:1.5;margin:4px 0">'
+                         f'✕ <b>{eb}</b> — {frag}</div>')
+            occ, start = occ + 1, i + len(b)
+    ctx_block = (
+        '<div style="margin-top:8px;padding-top:6px;border-top:1px dashed #f0c9c9">'
+        '<div style="font-size:11px;color:#c47d00;font-weight:700;margin-bottom:3px">'
+        '📄 사용된 표현 문맥 — 문맥상 문제없으면 무시하세요</div>'
+        f'{ctx_rows}</div>') if ctx_rows else ""
+    return f'<div class="vh-wrap">{summary}<div class="vh-chips">{chips}</div>{ctx_block}</div>'
 
 
 def rider_detail(rv: dict, ref_total: int, page_of=None) -> str:

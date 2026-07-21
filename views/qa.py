@@ -237,7 +237,8 @@ def render_qa(sheets, claude=None):
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:
         _used = sum(1 for b in g["banned"] if b in text)
-        st.markdown(ui.subhead("🚫", "표현불가 문구 점검", "red" if _used else "green",
+        st.markdown(ui.subhead("🚫", "표현불가 문구 점검 (문맥에 따라 사용 가능 · 체크 필요)",
+                               "red" if _used else "green",
                                stat=f"{len(g['banned'])}개 중 {_used}개 사용"), unsafe_allow_html=True)
         st.markdown(ui.banned_detail(g["banned"], text, page_of=pg), unsafe_allow_html=True)
     if report["banned"]:
