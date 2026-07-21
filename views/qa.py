@@ -250,8 +250,8 @@ def render_qa(sheets, claude=None):
         ({"icon": "#️⃣", "tone": "green" if not gc["tags_missing"] else "amber", "label": "필수 해시태그",
           "value": f'{len(gc["tags_included"])}/{gc["tags_total"]}', "sub": "포함"} if gc else
          {"icon": "#️⃣", "tone": "gray", "label": "필수 해시태그", "value": "–", "sub": "자료실 없음"}),
-        {"icon": "🔑", "tone": "green" if 3 <= kwc <= 5 else "amber", "label": "'해외여행보험' 키워드",
-         "value": f'{kwc}개', "sub": "가이드 3~5개"},
+        {"icon": "🔑", "tone": "green" if kwc >= 3 else "amber", "label": "'해외여행보험' 키워드",
+         "value": f'{kwc}개', "sub": "가이드 3개 이상"},
         {"icon": "💰", "tone": "amber" if report["price_found"] else "green", "label": "보험료 기재",
          "value": "발견" if report["price_found"] else "없음", "sub": "금액 탐지"},
     ]

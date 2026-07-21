@@ -42,7 +42,16 @@ def test_keyword_count_excludes_hashtags():
     body = "해외여행보험 소개 #해외여행보험 #해외여행보험추천 #해외여행보험후기"  # 본문 1개
     items = req_check.evaluate("t", body)
     by = {i["name"]: i for i in items}
-    assert "1개" in by["'해외여행보험' 키워드 3~5개"]["detail"]
+    assert "1개" in by["'해외여행보험' 키워드 3개 이상"]["detail"]
+    assert by["'해외여행보험' 키워드 3개 이상"]["status"] == "warn"     # 1개 < 3 → 부족
+
+
+def test_keyword_count_three_or_more_ok():
+    # 3개 이상이면 상한 없이 충족(6개도 ok) — 사용자 요청 반영
+    by3 = {i["name"]: i for i in req_check.evaluate("t", "해외여행보험 " * 3)}
+    assert by3["'해외여행보험' 키워드 3개 이상"]["status"] == "ok"
+    by6 = {i["name"]: i for i in req_check.evaluate("t", "해외여행보험 " * 6)}
+    assert by6["'해외여행보험' 키워드 3개 이상"]["status"] == "ok"      # 예전엔 warn, 이제 ok
 
 
 def test_official_blog_paid_ad_na():

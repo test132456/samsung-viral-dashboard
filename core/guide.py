@@ -109,6 +109,6 @@ def check(manuscript: str, guide: dict) -> dict:
     return {
         "banned_hits": banned_hits,
         "tags_total": len(tags), "tags_included": tags_included, "tags_missing": tags_missing,
-        "keyword_count": kw_count,          # '해외여행보험' 등장 횟수 (가이드: 3~5개)
-        "keyword_ok": 3 <= kw_count <= 5,
+        "keyword_count": kw_count,          # '해외여행보험' 등장 횟수 (가이드: 3개 이상, 상한 없음)
+        "keyword_ok": kw_count >= 3,
     }

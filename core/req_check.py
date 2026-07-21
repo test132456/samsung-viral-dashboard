@@ -97,10 +97,10 @@ def evaluate(title: str, body: str, is_official: bool = False,
     else:
         add(G1, "필수 해시태그 포함", "fail", "필수 해시태그 없음")
 
-    # 4-① '해외여행보험' 키워드 3~5개 (본문 기준, 해시태그 제외)
+    # 4-① '해외여행보험' 키워드 3개 이상 (본문 기준, 해시태그 제외) — 상한 없음(3개부터 충족)
     kc = body_no_tags.count(PRODUCT)
-    st = "ok" if 3 <= kc <= 5 else ("warn" if kc else "fail")
-    add(G1, "'해외여행보험' 키워드 3~5개", st, f"본문 {kc}개 (필수 3~5개)")
+    st = "ok" if kc >= 3 else ("warn" if kc else "fail")
+    add(G1, "'해외여행보험' 키워드 3개 이상", st, f"본문 {kc}개 (필수 3개 이상)")
 
     # 4-② 연관 키워드
     found = [r for r in RELATED if r in body]
