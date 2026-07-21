@@ -71,6 +71,12 @@ def test_link_placeholder_counts_as_ok():
     ok = {i["name"]: i for i in req_check.evaluate("t", "가입은 아래 링크 삽입 예정입니다.")}
     assert ok["허용 상품 링크만 사용"]["status"] == "ok"
     assert ok["하단 가입 링크"]["status"] == "ok"                # 하단 가입 링크도 동일 적용
+    # 각괄호 <링크삽입> 형태도 인정
+    br = {i["name"]: i for i in req_check.evaluate("t", "가입은 여기 <링크삽입> 참고")}
+    assert br["허용 상품 링크만 사용"]["status"] == "ok"
+    # 진짜 링크가 있으면(하단이 아니어도) 하단 가입 링크 충족
+    mid = "가입 https://direct.samsungfire.com/mall/PP.html 후 " + "본문이 길게 이어집니다. " * 10
+    assert {i["name"]: i for i in req_check.evaluate("t", mid)}["하단 가입 링크"]["status"] == "ok"
     # 자리표시도 실제 링크도 없으면 warn 유지
     warn = {i["name"]: i for i in req_check.evaluate("t", "가입하세요 좋은 상품입니다.")}
     assert warn["허용 상품 링크만 사용"]["status"] == "warn"

@@ -165,7 +165,7 @@ def render_qa(sheets, claude=None):
             st.session_state["qa_naver_ok"] = _naver_ok
             st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=None)
             st.session_state["qa_checklist"] = qa_checklist.evaluate(
-                title, text, refs, is_official=is_official, typos=_typos, naver_ok=_naver_ok)
+                title, text, refs, is_official=is_official)
         finally:
             _ov.empty()
 
@@ -176,7 +176,7 @@ def render_qa(sheets, claude=None):
     if cl:
         cs = qa_checklist.summary(cl)
         st.caption(f"✓ 충족 {cs['ok']} · △ 부분 {cs['warn']} · ✕ 미충족 {cs['fail']} · 통과율 {cs['pass_rate']}%  "
-                   f"· 가이드 '원고 작성 예시 플로우' 기준 (맞춤법→제목→유료광고→특약 보장문장→가입 링크→고지문구→해시태그)")
+                   f"· 가이드 '원고 작성 예시 플로우' 기준 (제목→유료광고→특약 보장문장→가입 링크→고지문구→해시태그) · 오탈자는 아래 별도 섹션")
     else:
         st.caption("제목·원고 입력 후 '검수 실행'을 누르면 가이드 플로우 항목이 ✓ / △ / ✕ 로 채워집니다.")
 

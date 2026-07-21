@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 import re
-from core import qa_rules, typo, req_check
+from core import qa_rules, req_check
 
 HEAD_RATIO = 0.20         # 본문 '첫 부분(상단)' 비율
 TAIL_RATIO = 0.25         # 본문 '하단' 비율
@@ -15,9 +15,8 @@ _URL_RE = re.compile(r"https?://\S+")
 # ★ 특약 보장문장 패턴: "(담보명) 특약 가입 시, 가입 금액 한도로 보장"
 _BENEFIT_RE = re.compile(r"가입금액한도")
 
-# 체크리스트 항목명 (evaluate/blank 공통, 가이드 플로우 순서)
+# 체크리스트 항목명 (evaluate/blank 공통, 가이드 플로우 순서) — 맞춤법 검사는 별도 '오탈자' 섹션으로 분리(플로우 제외)
 NAMES = [
-    "맞춤법 검사",
     "제목 키워드 시작",
     "유료광고 문안(상단)",
     "특약 보장문장",
@@ -32,11 +31,9 @@ def blank() -> list[dict]:
     return [{"name": n, "status": "pending", "detail": "검수 전"} for n in NAMES]
 
 
-def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
-             typos: list[dict] | None = None, naver_ok: bool | None = None) -> list[dict]:
+def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> list[dict]:
     """is_official=True(공식블로그)면 유료광고 문안은 '해당없음'(na) 처리.
-    typos: 미리 계산한 오탈자 목록(사전+네이버). None이면 사전만으로 계산.
-    naver_ok: 네이버 맞춤법이 실제로 돌았는지. False면 '사전만' 검사라 임의 오타는 미확인."""
+    (맞춤법/오탈자는 플로우에서 제외 — 결과의 별도 '오탈자' 섹션에서 확인)"""
     title = (title or "").strip()
     body = body or ""
     keywords = [k["keyword"] for k in refs.get("keywords", []) if k.get("type") == "키워드"]
@@ -46,20 +43,7 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
 
     items = []
 
-    # ① 맞춤법 검사 (오탈자 사전 + 네이버 맞춤법)
-    _typos = typo.check_typos(body) if typos is None else typos
-    if not _typos:
-        if naver_ok is False:  # 네이버 차단 → 사전만 돌아 임의 오타는 확인 못 함
-            items.append({"name": "맞춤법 검사", "status": "warn",
-                          "detail": "사전 기준 이상 없음 · 네이버 차단으로 임의 오타는 미확인(로컬 실행 권장)"})
-        else:
-            items.append({"name": "맞춤법 검사", "status": "ok", "detail": "오탈자 없음"})
-    else:
-        _w = ", ".join(f'{t["as_is"]}→{t["to_be"]}' for t in _typos[:4])
-        _more = f" 외 {len(_typos) - 4}건" if len(_typos) > 4 else ""
-        items.append({"name": "맞춤법 검사", "status": "fail", "detail": f"{len(_typos)}건: {_w}{_more}"})
-
-    # ② 제목 키워드 시작점 (브랜드 접두어 '삼성화재 다이렉트' 뒤 키워드도 시작점으로 인정)
+    # ① 제목 키워드 시작점 (브랜드 접두어 '삼성화재 다이렉트' 뒤 키워드도 시작점으로 인정)
     if title and any(req_check.title_starts_with_keyword(title, k) for k in keywords):
         items.append({"name": "제목 키워드 시작", "status": "ok", "detail": "제목이 핵심 키워드로 시작(브랜드 접두어 뒤 포함)"})
     elif title and any(k in title for k in keywords):

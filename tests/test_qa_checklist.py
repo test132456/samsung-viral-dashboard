@@ -82,33 +82,15 @@ def test_url_step(refs):
     assert by["가입 링크(URL)"] == "ok"
     by2 = {i["name"]: i["status"] for i in qa_checklist.evaluate("해외여행보험", "링크 없는 본문", refs)}
     assert by2["가입 링크(URL)"] == "warn"
-    # 플로우 7단계 (맞춤법 / 제목 키워드 / 유료광고 / 특약 보장문장 / 가입 링크 / 고지문구 / 해시태그)
-    assert len(qa_checklist.NAMES) == 7
-    assert qa_checklist.NAMES[0] == "맞춤법 검사"
+    # 플로우 6단계 (제목 키워드 / 유료광고 / 특약 보장문장 / 가입 링크 / 고지문구 / 해시태그) — 맞춤법 제외
+    assert len(qa_checklist.NAMES) == 6
+    assert qa_checklist.NAMES[0] == "제목 키워드 시작"
+    assert "맞춤법 검사" not in qa_checklist.NAMES
 
 
 def test_url_step_link_placeholder_ok(refs):
-    # '링크 삽입' 자리표시 문구가 있으면 URL 없어도 플로우 ⑤ 충족(ok)
+    # '링크 삽입' 자리표시 문구가 있으면 URL 없어도 플로우 가입 링크 충족(ok)
     by = {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", "가입은 아래 링크 삽입 예정", refs)}
     assert by["가입 링크(URL)"]["status"] == "ok"
     by2 = {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", "링크 없는 본문", refs)}
     assert by2["가입 링크(URL)"]["status"] == "warn"
-
-
-def test_spellcheck_flow_step(refs):
-    # 오탈자 있으면 맞춤법 검사 = fail + 어느 단어인지 detail에
-    items = qa_checklist.evaluate("해외여행보험", "유렵 여행 스케쥴 확인", refs)
-    d = {i["name"]: i for i in items}
-    assert d["맞춤법 검사"]["status"] == "fail"
-    assert "유렵→유럽" in d["맞춤법 검사"]["detail"]
-    # 오탈자 없으면 ok
-    ok = {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", "정상 본문입니다", refs)}
-    assert ok["맞춤법 검사"]["status"] == "ok"
-
-
-def test_spellcheck_flow_naver_blocked_is_warn(refs):
-    # 네이버 차단(naver_ok=False) + 사전 오탈자 없음 → 초록 'ok'가 아니라 '△ warn'으로 정직하게
-    blocked = {i["name"]: i for i in qa_checklist.evaluate(
-        "해외여행보험", "정상 본문입니다", refs, typos=[], naver_ok=False)}
-    assert blocked["맞춤법 검사"]["status"] == "warn"
-    assert "네이버" in blocked["맞춤법 검사"]["detail"]
