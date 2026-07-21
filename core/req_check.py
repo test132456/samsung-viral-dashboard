@@ -148,6 +148,8 @@ def evaluate(title: str, body: str, is_official: bool = False,
         add(G2, "하단 가입 링크", "ok", "본문 하단에 가입 링크", _esc(mall[0]))
     elif mall:
         add(G2, "하단 가입 링크", "warn", "링크 있으나 하단 아님", _esc(mall[0]))
+    elif _LINK_PLACEHOLDER.search(body):
+        add(G2, "하단 가입 링크", "ok", "‘링크 삽입’ 표기 확인 (심의 완료 후 삽입 예정)")
     else:
         add(G2, "하단 가입 링크", "warn", "가입 링크 없음 (심의 완료 후 삽입 예정)")
 

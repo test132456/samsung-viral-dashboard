@@ -58,9 +58,11 @@ def test_link_placeholder_counts_as_ok():
     # '링크 삽입' 자리표시 문구가 있으면 링크 없어도 충족(ok)
     ok = {i["name"]: i for i in req_check.evaluate("t", "가입은 아래 링크 삽입 예정입니다.")}
     assert ok["허용 상품 링크만 사용"]["status"] == "ok"
+    assert ok["하단 가입 링크"]["status"] == "ok"                # 하단 가입 링크도 동일 적용
     # 자리표시도 실제 링크도 없으면 warn 유지
     warn = {i["name"]: i for i in req_check.evaluate("t", "가입하세요 좋은 상품입니다.")}
     assert warn["허용 상품 링크만 사용"]["status"] == "warn"
+    assert warn["하단 가입 링크"]["status"] == "warn"
 
 
 def test_official_blog_paid_ad_na():
