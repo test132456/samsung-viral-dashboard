@@ -98,3 +98,11 @@ def test_find_page_ignores_punctuation_hashtag_and_multi_sentence():
     n_multi = "국젯선 유류할증료가 인하되고 일봉 여행 가는 사람들이 늘어나고 있어요 해외여행보험"
     assert manuscript_parser.find_page(pages, n_multi) == 1     # 마침표/해시태그 무시하고 매칭
     assert manuscript_parser.find_page(pages, "여행자 보험을 팻스하는 경우가 많은데요") == 2
+
+
+def test_find_page_context_spanning_paragraphs():
+    # 심의 표현 점검의 문맥 조각처럼 여러 문단(줄)에 걸친 needle 도 위치로 페이지를 찾는다
+    pages = [(9, "비행기 결항"), (9, "캐리어 파손 등"), (9, "다양한 일들을 겪고")]
+    assert manuscript_parser.find_page(pages, "…결항, 캐리어 파손 등 다양한 일들…") == 9
+    pages2 = [(4, "앞 문단 내용"), (5, "막 먹었더니 배가"), (5, "아파서 병원에 갔죠")]
+    assert manuscript_parser.find_page(pages2, "먹었더니 배가 아파서 병원") == 5

@@ -152,20 +152,30 @@ def _match_key(s: str) -> str:
 
 
 def find_page(pages: list[tuple[int, str]], needle: str) -> int | None:
-    """needle 이 처음 등장하는 문단의 추정 페이지(문장부호·해시태그·공백 무시).
-    여러 문장이 합쳐진 needle 도 앞부분(probe)으로 매칭해 위치를 잡는다."""
+    """needle 이 등장하는 문단의 추정 페이지(문장부호·해시태그·공백 무시).
+    긴 문맥 조각(여러 문단·줄에 걸침)은 정규화한 전체 문서에서 위치를 찾아 그 지점의 페이지를 준다."""
     if not needle or not pages:
         return None
     key = _match_key(needle)
     if not key:
         return None
-    probe = key[:20]
+    # 1) 문단 단위 매칭 — 짧은 needle(금지어·특약명 등)에 빠르고 정확
     for page, text in pages:
-        t = _match_key(text)
-        if not t:
-            continue
-        if key in t or (len(probe) >= 8 and probe in t):
+        if key in _match_key(text):
             return page
+    # 2) 여러 문단에 걸친 긴 needle(심의 표현 점검의 문맥 조각) → 전체 문서 위치→페이지
+    full_parts, page_at = [], []
+    for page, text in pages:
+        nt = _match_key(text)
+        full_parts.append(nt)
+        page_at.extend([page] * len(nt))
+    full = "".join(full_parts)
+    for probe in (key, key[:24], key[:12]):
+        if len(probe) < 6:
+            continue
+        i = full.find(probe)
+        if i >= 0:
+            return page_at[i] if i < len(page_at) else pages[-1][0]
     return None
 
 
