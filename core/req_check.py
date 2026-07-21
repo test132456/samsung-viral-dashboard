@@ -169,7 +169,7 @@ def evaluate(title: str, body: str, is_official: bool = False,
     elif _LINK_PLACEHOLDER.search(body):
         add(G2, "하단 가입 링크", "ok", "‘링크 삽입’ 표기 확인 (심의 완료 후 삽입 예정)")
     else:
-        add(G2, "하단 가입 링크", "warn", "가입 링크 없음 (심의 완료 후 삽입 예정)")
+        add(G2, "하단 가입 링크", "fail", "<링크 삽입> 문구 or URL 기입 확인")
 
     # 8) 준법감시인확인필 (본문 하단) — 심의 후 번호 확정
     if "준법감시인확인필" in tail:

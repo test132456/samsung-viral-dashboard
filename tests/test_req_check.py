@@ -77,10 +77,11 @@ def test_link_placeholder_counts_as_ok():
     # 진짜 링크가 있으면(하단이 아니어도) 하단 가입 링크 충족
     mid = "가입 https://direct.samsungfire.com/mall/PP.html 후 " + "본문이 길게 이어집니다. " * 10
     assert {i["name"]: i for i in req_check.evaluate("t", mid)}["하단 가입 링크"]["status"] == "ok"
-    # 자리표시도 실제 링크도 없으면 warn 유지
+    # 자리표시도 실제 링크도 없으면: 허용 상품 링크는 warn, 하단 가입 링크는 fail(반드시 표기 필요)
     warn = {i["name"]: i for i in req_check.evaluate("t", "가입하세요 좋은 상품입니다.")}
     assert warn["허용 상품 링크만 사용"]["status"] == "warn"
-    assert warn["하단 가입 링크"]["status"] == "warn"
+    assert warn["하단 가입 링크"]["status"] == "fail"
+    assert "링크 삽입" in warn["하단 가입 링크"]["detail"]
 
 
 def test_official_blog_paid_ad_na():
