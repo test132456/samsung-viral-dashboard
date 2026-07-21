@@ -305,7 +305,8 @@ def review_detail(results: list[dict], page_of=None) -> str:
         b_bg, b_fg = ("#e6f0ff", "#2563eb") if exact else ("#fff3e0", "#c47d00")
         bar = "#f5a623" if exact else "#c9a24b"
         rows = []
-        for h in r["hits"][:8]:
+        cap = 3 if r.get("key") == "deung" else 8   # '등'은 흔해서 예시만 몇 개
+        for h in r["hits"][:cap]:
             hit = html.escape(str(h.get("hit", "")))
             ctx = html.escape(str(h.get("context", "")))
             if hit and hit in ctx:      # 지적어가 문맥에 있으면 빨강 강조
@@ -315,8 +316,8 @@ def review_detail(results: list[dict], page_of=None) -> str:
             rows.append(
                 '<div style="font-size:12.5px;color:#40506b;line-height:1.5;margin:4px 0">'
                 f'{ctx}<span style="font-size:11px;color:#8a94a6;font-weight:600">{loc}</span></div>')
-        more = f'<div style="font-size:11px;color:#8a94a6;margin-top:3px">… 외 {len(r["hits"]) - 8}건</div>' \
-            if len(r["hits"]) > 8 else ""
+        more = f'<div style="font-size:11px;color:#8a94a6;margin-top:3px">… 외 {len(r["hits"]) - cap}건</div>' \
+            if len(r["hits"]) > cap else ""
         blocks.append(
             f'<div style="padding:9px 13px;margin:7px 0;background:#fffaf0;border-left:4px solid {bar};border-radius:9px">'
             f'<div style="font-size:12.5px;font-weight:800;color:#1f2a44;margin-bottom:3px">'

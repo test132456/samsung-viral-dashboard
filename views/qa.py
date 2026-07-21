@@ -283,14 +283,14 @@ def render_qa(sheets, claude=None):
 
     # --- 심의 표현 점검 (단정·최상급·모호표현·특약병기·제한안내·이중공백) ---
     _rev = review_rules.check_all(text, ref_riders)
-    _rev_n = sum(len(r["hits"]) for r in _rev)
-    st.markdown(ui.subhead("🔎", "심의 표현 점검", "amber" if _rev_n else "green",
-                           stat=(f"{_rev_n}건 확인 필요" if _rev_n else "지적 없음")), unsafe_allow_html=True)
-    if _rev_n:
+    _rev_items = sum(1 for r in _rev if r["hits"])          # 지적된 '항목 수'(건수 아님 — '등' 과다 표시 방지)
+    st.markdown(ui.subhead("🔎", "심의 표현 점검", "amber" if _rev_items else "green",
+                           stat=(f"{_rev_items}개 항목 확인" if _rev_items else "지적 없음")), unsafe_allow_html=True)
+    if _rev_items:
         st.markdown(ui.review_detail(_rev, page_of=pg), unsafe_allow_html=True)
-    st.caption("**정확**=규칙 기반 자동 검출(이중공백·최상급 단어) · **후보**=문맥 판단 필요, 사람이 최종 확인 "
-               "(‘등’·단정 인과·특약 병기·제한 안내는 문맥상 정상일 수 있음). "
-               "점검 항목: ①단정표현 ②특약명 병기 ③모호표현‘등’ ④최상급 ⑤제한안내 누락 ⑥이중공백")
+    st.caption("**정확**=규칙 기반 자동 검출(이중공백·최상급) · **후보**=문맥 판단 필요, 사람이 최종 확인. "
+               "‘등’·‘가장/제일’은 지양 대상이라 자주 잡히지만 문맥상 정상이면 무시하세요. "
+               "**특약·담보는 반드시 정식 담보명(괄호 수식어+‘특약’)으로** — 아래 ‘특약명 대조’의 정식명 목록 참고.")
 
     # --- 특약명 상세 (가이드 정식 담보명 기준) ---
     st.markdown(ui.subhead("📑", "특약명 대조", "red" if rv["mismatch_count"] else "green",
