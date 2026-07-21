@@ -25,6 +25,8 @@ COMPETITORS = ["현대해상", "DB손해보험", "DB손보", "KB손해보험", "
 PAID_MARKERS = ["소정의 광고비", "광고비(원고료)", "원고료", "유료광고", "광고비"]
 ALLOWED_HOST = "samsungfire.com"
 _HEAD, _TAIL = 0.25, 0.30
+# 제목 맨 앞에 흔히 붙는 브랜드 접두어 — 이 뒤에 목표 키워드가 오면 '시작점 배치'로 인정
+_BRAND_PREFIXES = ["삼성화재 다이렉트", "삼성화재다이렉트", "삼성 다이렉트", "삼성화재"]
 
 
 def _esc(t: str) -> str:
@@ -40,6 +42,22 @@ def _snip(body: str, needle: str, w: int = 35) -> str:
     frag = _esc(body[s:e].replace("\n", " ").strip())
     frag = frag.replace(_esc(needle), f"<b>{_esc(needle)}</b>")
     return ("…" if s > 0 else "") + frag + ("…" if e < len(body) else "")
+
+
+def title_starts_with_keyword(title: str, keyword: str) -> bool:
+    """제목이 목표 키워드로 시작하거나, 브랜드 접두어(삼성화재 다이렉트 등) 바로 뒤에 키워드가 오면 True.
+    예: '삼성화재 다이렉트 해외여행보험으로 …' → True (시작점 배치로 인정)."""
+    if not keyword:
+        return False
+    t = (title or "").strip().lstrip("[]()<>{}·-  \t")
+    if t.startswith(keyword):
+        return True
+    for p in _BRAND_PREFIXES:
+        if t.startswith(p):
+            rest = t[len(p):].lstrip(" ·-,]")
+            if rest.startswith(keyword):
+                return True
+    return False
 
 
 # [기타 혜택] 소구 항목 (슬라이드3)
@@ -111,9 +129,9 @@ def evaluate(title: str, body: str, is_official: bool = False,
     else:
         add(G1, "연관 키워드 삽입", "warn", "여행자보험 등 연관 키워드 없음")
 
-    # 4-④ 제목: 키워드 시작 (글자수 제한 없음)
-    if title.startswith(PRODUCT):
-        add(G1, "제목 키워드 시작", "ok", "핵심 키워드로 시작", _esc(title))
+    # 4-④ 제목: 키워드 시작 (브랜드 접두어 '삼성화재 다이렉트' 뒤 키워드도 시작점으로 인정)
+    if title_starts_with_keyword(title, PRODUCT):
+        add(G1, "제목 키워드 시작", "ok", "핵심 키워드로 시작(브랜드 접두어 뒤 포함)", _esc(title))
     elif PRODUCT in title:
         add(G1, "제목 키워드 시작", "warn", "키워드 있으나 맨 앞 아님", _esc(title))
     else:

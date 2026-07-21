@@ -54,6 +54,18 @@ def test_keyword_count_three_or_more_ok():
     assert by6["'해외여행보험' 키워드 3개 이상"]["status"] == "ok"      # 예전엔 warn, 이제 ok
 
 
+def test_title_keyword_after_brand_prefix_is_ok():
+    # 브랜드 접두어 '삼성화재 다이렉트' 뒤 키워드도 '시작점 배치'로 인정
+    assert req_check.title_starts_with_keyword("삼성화재 다이렉트 해외여행보험으로 안전하게", "해외여행보험")
+    assert req_check.title_starts_with_keyword("해외여행보험 가입 방법", "해외여행보험")
+    assert req_check.title_starts_with_keyword("삼성화재 해외여행보험 추천", "해외여행보험")
+    # 브랜드 접두어 없이 뒤에 묻히면 시작점 아님
+    assert not req_check.title_starts_with_keyword("안전한 여행을 위한 해외여행보험", "해외여행보험")
+    # evaluate 상태: 접두어 뒤 키워드 → ok
+    by = {i["name"]: i for i in req_check.evaluate("삼성화재 다이렉트 해외여행보험으로 안전하게", "본문")}
+    assert by["제목 키워드 시작"]["status"] == "ok"
+
+
 def test_link_placeholder_counts_as_ok():
     # '링크 삽입' 자리표시 문구가 있으면 링크 없어도 충족(ok)
     ok = {i["name"]: i for i in req_check.evaluate("t", "가입은 아래 링크 삽입 예정입니다.")}

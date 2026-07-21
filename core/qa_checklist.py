@@ -59,9 +59,9 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
         _more = f" 외 {len(_typos) - 4}건" if len(_typos) > 4 else ""
         items.append({"name": "맞춤법 검사", "status": "fail", "detail": f"{len(_typos)}건: {_w}{_more}"})
 
-    # ② 제목 키워드 시작점
-    if title and any(title.startswith(k) for k in keywords):
-        items.append({"name": "제목 키워드 시작", "status": "ok", "detail": "제목이 핵심 키워드로 시작"})
+    # ② 제목 키워드 시작점 (브랜드 접두어 '삼성화재 다이렉트' 뒤 키워드도 시작점으로 인정)
+    if title and any(req_check.title_starts_with_keyword(title, k) for k in keywords):
+        items.append({"name": "제목 키워드 시작", "status": "ok", "detail": "제목이 핵심 키워드로 시작(브랜드 접두어 뒤 포함)"})
     elif title and any(k in title for k in keywords):
         items.append({"name": "제목 키워드 시작", "status": "warn", "detail": "키워드 있으나 맨 앞 아님"})
     else:
