@@ -2,7 +2,8 @@
 import streamlit as st
 import docx, io
 from datetime import date
-from core import qa_engine, schema, qa_checklist, manuscript_parser, terms, guide, req_check, typo, library
+from core import (qa_engine, schema, qa_checklist, manuscript_parser, terms, guide,
+                  req_check, typo, library, review_rules)
 from views import ui
 
 
@@ -279,6 +280,17 @@ def render_qa(sheets, claude=None):
         st.markdown(ui.banned_detail(g["banned"], text, page_of=pg), unsafe_allow_html=True)
     if report["banned"]:
         st.error("기본 사전 금지표현: " + ", ".join(f"'{b['term']}'{pg(b['term'])}" for b in report["banned"]))
+
+    # --- 심의 표현 점검 (단정·최상급·모호표현·특약병기·제한안내·이중공백) ---
+    _rev = review_rules.check_all(text, ref_riders)
+    _rev_n = sum(len(r["hits"]) for r in _rev)
+    st.markdown(ui.subhead("🔎", "심의 표현 점검", "amber" if _rev_n else "green",
+                           stat=(f"{_rev_n}건 확인 필요" if _rev_n else "지적 없음")), unsafe_allow_html=True)
+    if _rev_n:
+        st.markdown(ui.review_detail(_rev, page_of=pg), unsafe_allow_html=True)
+    st.caption("**정확**=규칙 기반 자동 검출(이중공백·최상급 단어) · **후보**=문맥 판단 필요, 사람이 최종 확인 "
+               "(‘등’·단정 인과·특약 병기·제한 안내는 문맥상 정상일 수 있음). "
+               "점검 항목: ①단정표현 ②특약명 병기 ③모호표현‘등’ ④최상급 ⑤제한안내 누락 ⑥이중공백")
 
     # --- 특약명 상세 (가이드 정식 담보명 기준) ---
     st.markdown(ui.subhead("📑", "특약명 대조", "red" if rv["mismatch_count"] else "green",

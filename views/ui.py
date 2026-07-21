@@ -293,6 +293,41 @@ def typo_detail(typos: list[dict], page_of=None) -> str:
     return f'<div class="vh-wrap">{"".join(rows)}</div>'
 
 
+def review_detail(results: list[dict], page_of=None) -> str:
+    """심의 표현 점검 결과 — 규칙별 지적사항 + 문맥(지적어 강조) + 정확/후보 배지.
+    results: review_rules.check_all() 반환. 지적 없는 규칙은 생략."""
+    groups = [r for r in results if r.get("hits")]
+    if not groups:
+        return ""
+    blocks = []
+    for r in groups:
+        exact = r["grade"] == "정확"
+        b_bg, b_fg = ("#e6f0ff", "#2563eb") if exact else ("#fff3e0", "#c47d00")
+        bar = "#f5a623" if exact else "#c9a24b"
+        rows = []
+        for h in r["hits"][:8]:
+            hit = html.escape(str(h.get("hit", "")))
+            ctx = html.escape(str(h.get("context", "")))
+            if hit and hit in ctx:      # 지적어가 문맥에 있으면 빨강 강조
+                ctx = ctx.replace(hit, f'<span style="color:#c23636;font-weight:800;'
+                                       f'background:#ffdada;border-radius:3px;padding:0 2px">{hit}</span>')
+            loc = page_of(h.get("context", "")) if page_of else ""
+            rows.append(
+                '<div style="font-size:12.5px;color:#40506b;line-height:1.5;margin:4px 0">'
+                f'{ctx}<span style="font-size:11px;color:#8a94a6;font-weight:600">{loc}</span></div>')
+        more = f'<div style="font-size:11px;color:#8a94a6;margin-top:3px">… 외 {len(r["hits"]) - 8}건</div>' \
+            if len(r["hits"]) > 8 else ""
+        blocks.append(
+            f'<div style="padding:9px 13px;margin:7px 0;background:#fffaf0;border-left:4px solid {bar};border-radius:9px">'
+            f'<div style="font-size:12.5px;font-weight:800;color:#1f2a44;margin-bottom:3px">'
+            f'{r["icon"]} {html.escape(r["title"])} '
+            f'<span style="font-size:10.5px;font-weight:700;color:{b_fg};background:{b_bg};'
+            f'border-radius:10px;padding:1px 7px;margin-left:4px">{r["grade"]}</span> '
+            f'<span style="font-size:11px;color:#8a94a6;font-weight:600">{len(r["hits"])}건</span></div>'
+            f'{"".join(rows)}{more}</div>')
+    return f'<div class="vh-wrap">{"".join(blocks)}</div>'
+
+
 def required_detail(items: list[dict]) -> str:
     """필수문구 항목별 포함/누락을 정확히 나열. items: [{type, variants, present, phrase}]."""
     if not items:
