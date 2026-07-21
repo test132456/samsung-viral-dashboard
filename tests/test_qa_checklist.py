@@ -64,6 +64,14 @@ def test_summary_counts(refs):
     assert 0 <= s["pass_rate"] <= 100
 
 
+def test_paid_ad_image_case_flow(refs):
+    # 플로우 유료광고: 마커 없음 → 이미지 없으면 fail, 이미지 있으면 warn(이미지 삽입 확인)
+    body = "여행 후기입니다. 스노클링 즐거웠어요."
+    assert {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", body, refs)}["유료광고 문안(상단)"]["status"] == "fail"
+    by = {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", body, refs, has_images=True)}
+    assert by["유료광고 문안(상단)"]["status"] == "warn"
+
+
 def test_official_blog_marks_paid_ad_na(refs):
     items = qa_checklist.evaluate("해외여행보험 안내", "유료광고 없는 본문입니다", refs, is_official=True)
     by = {i["name"]: i["status"] for i in items}

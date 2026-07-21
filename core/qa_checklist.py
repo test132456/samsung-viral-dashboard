@@ -31,8 +31,10 @@ def blank() -> list[dict]:
     return [{"name": n, "status": "pending", "detail": "검수 전"} for n in NAMES]
 
 
-def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> list[dict]:
+def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
+             has_images: bool = False) -> list[dict]:
     """is_official=True(공식블로그)면 유료광고 문안은 '해당없음'(na) 처리.
+    has_images=True면 텍스트에 없는 유료광고 문안이 이미지 삽입일 수 있어 fail 대신 warn.
     (맞춤법/오탈자는 플로우에서 제외 — 결과의 별도 '오탈자' 섹션에서 확인)"""
     title = (title or "").strip()
     body = body or ""
@@ -58,6 +60,8 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False) -> li
         items.append({"name": "유료광고 문안(상단)", "status": "ok", "detail": "본문 첫 부분에 표기"})
     elif "유료광고" in body or "원고료" in body or "광고비" in body:
         items.append({"name": "유료광고 문안(상단)", "status": "warn", "detail": "표기 있으나 상단 아님"})
+    elif has_images:
+        items.append({"name": "유료광고 문안(상단)", "status": "warn", "detail": "텍스트에 없음 — 이미지로 삽입됐는지 확인"})
     else:
         items.append({"name": "유료광고 문안(상단)", "status": "fail", "detail": "유료광고 문안 없음"})
 

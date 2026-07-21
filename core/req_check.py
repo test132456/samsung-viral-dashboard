@@ -71,7 +71,10 @@ BENEFITS = {
 
 
 def evaluate(title: str, body: str, is_official: bool = False,
-             rider_result: dict | None = None, page_of=None) -> list[dict]:
+             rider_result: dict | None = None, page_of=None,
+             has_images: bool = False) -> list[dict]:
+    """has_images=True(원고에 이미지 있음)면, 텍스트에 없는 유료광고 문안이
+    이미지로 삽입됐을 수 있어 '없음(fail)' 대신 '이미지 확인(warn)'으로 처리."""
     title = (title or "").strip()
     body = body or ""
     head = body[:max(80, int(len(body) * _HEAD))]
@@ -157,6 +160,8 @@ def evaluate(title: str, body: str, is_official: bool = False,
         add(G2, "유료광고 문안(상단)", "ok", "본문 첫 부분에 표기", _snip(body, marker))
     elif marker:
         add(G2, "유료광고 문안(상단)", "warn", "표기 있으나 상단 아님", _snip(body, marker))
+    elif has_images:
+        add(G2, "유료광고 문안(상단)", "warn", "텍스트에 없음 — 이미지로 삽입됐는지 육안 확인 필요")
     else:
         add(G2, "유료광고 문안(상단)", "fail", "유료광고 문안 없음")
 

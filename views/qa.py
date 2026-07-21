@@ -3,30 +3,8 @@ import streamlit as st
 import docx, io
 from datetime import date
 from core import (qa_engine, schema, qa_checklist, manuscript_parser, terms, guide,
-                  req_check, typo, library, review_rules)
+                  req_check, library, review_rules)
 from views import ui
-
-
-# 오타 사전(TYPOS)/검사 로직이 바뀌면 +1 → 배포 시 st.cache_data 캐시 자동 무효화
-_TYPO_LOGIC_VER = 2
-
-
-@st.cache_data(show_spinner=False)
-def _spellcheck(text: str, logic_ver: int):
-    """오탈자 = 사전(항상, 신뢰) + 네이버 맞춤법(가능하면). text 기준 캐시.
-    logic_ver 는 캐시 키에 포함돼 사전/로직 변경 시 캐시를 무효화한다(_TYPO_LOGIC_VER).
-    반환: (오탈자목록, naver_ok). 네이버가 막히면 naver_ok=False + 사전 결과만."""
-    items = list(typo.check_typos(text))
-    clean = typo._clean_for_spell(text)
-    corrected = typo.spellcheck_naver(clean)  # 실패/차단 시 None
-    naver_ok = corrected is not None
-    if naver_ok:
-        for it in typo.diff_corrections(clean, corrected):
-            # 이미 사전/이전 항목이 같은 교정을 (조사만 다르게) 커버하면 건너뜀
-            dup = any(e["as_is"] in it["as_is"] and e["to_be"] in it["to_be"] for e in items)
-            if not dup and it["to_be"] not in it["as_is"]:
-                items.append(it)
-    return items[:60], naver_ok
 
 
 def _refs_from_sheets(sheets) -> dict:
@@ -49,6 +27,7 @@ def _load_upload(up):
     """업로드 파일 → (title_default, text_default, url). docx는 다중 원고 분리+블로거 선택.
     선택한 블로거명은 st.session_state['qa_blogger_name']에 저장(수정요청 양식용)."""
     st.session_state["qa_blogger_name"] = ""
+    st.session_state["qa_n_images"] = 0   # 유료광고 문안이 이미지로 삽입됐는지 판단용
     if up is None:
         return "", "", ""
     data = up.getvalue()
@@ -68,11 +47,13 @@ def _load_upload(up):
         if sec.get("deleted"):
             st.markdown(ui.deleted_html(sec["deleted"]), unsafe_allow_html=True)
         st.session_state["qa_blogger_name"] = sec.get("name", "")
+        st.session_state["qa_n_images"] = len(sec.get("images", []))
         return sec["title"], sec["body"], sec["url"]
+    st.session_state["qa_n_images"] = len(manuscript_parser.extract_images(data))
     return "", manuscript_parser.all_text(data), ""
 
 
-def _qa_revision(blogger, typos, gc, rv, report, gojib, paid, is_official):
+def _qa_revision(blogger, gc, rv, report, gojib, paid, is_official):
     """심의전 검수 발견사항 → 실행사 수정 요청 문구(복붙용)."""
     blocks = [f"<수정 요청 (심의 전) · {blogger}>" if blogger else "<수정 요청 (심의 전)>", ""]
     n = [1]
@@ -85,7 +66,6 @@ def _qa_revision(blogger, typos, gc, rv, report, gojib, paid, is_official):
             blocks.append("")
             n[0] += 1
 
-    sec("맞춤법·오탈자 (현재 → 수정)", [f"• {t['as_is']} → {t['to_be']}" for t in typos])
     banned = [f"• '{b}' 표현 삭제/순화" for b in (gc["banned_hits"] if gc else [])]
     banned += [f"• '{b['term']}' 표현 삭제/순화" for b in report.get("banned", [])]
     sec("표현불가 문구 (삭제/순화)", list(dict.fromkeys(banned)))
@@ -160,12 +140,10 @@ def render_qa(sheets, claude=None):
             if is_official:  # 공식블로그는 유료광고 문구 불필요 → 필수문구에서 제외
                 refs = {**refs, "required": [r for r in refs.get("required", [])
                                              if "유료광고" not in (str(r.get("type", "")) + str(r.get("phrase", "")))]}
-            _typos, _naver_ok = _spellcheck(text, _TYPO_LOGIC_VER)  # 사전 + 네이버 맞춤법
-            st.session_state["qa_typos"] = _typos
-            st.session_state["qa_naver_ok"] = _naver_ok
+            _has_img = st.session_state.get("qa_n_images", 0) > 0  # 유료광고 문안이 이미지일 수 있음
             st.session_state["qa_report"] = qa_engine.run_qa(text, refs, ai_judge=None)
             st.session_state["qa_checklist"] = qa_checklist.evaluate(
-                title, text, refs, is_official=is_official)
+                title, text, refs, is_official=is_official, has_images=_has_img)
         finally:
             _ov.empty()
 
@@ -176,7 +154,7 @@ def render_qa(sheets, claude=None):
     if cl:
         cs = qa_checklist.summary(cl)
         st.caption(f"✓ 충족 {cs['ok']} · △ 부분 {cs['warn']} · ✕ 미충족 {cs['fail']} · 통과율 {cs['pass_rate']}%  "
-                   f"· 가이드 '원고 작성 예시 플로우' 기준 (제목→유료광고→특약 보장문장→가입 링크→고지문구→해시태그) · 오탈자는 아래 별도 섹션")
+                   f"· 가이드 '원고 작성 예시 플로우' 기준 (제목→유료광고→특약 보장문장→가입 링크→고지문구→해시태그)")
     else:
         st.caption("제목·원고 입력 후 '검수 실행'을 누르면 가이드 플로우 항목이 ✓ / △ / ✕ 로 채워집니다.")
 
@@ -204,7 +182,6 @@ def render_qa(sheets, claude=None):
         terms_confirm = None
         if terms_data:
             terms_confirm = terms.confirmed_count(ref_riders, _terms_text(terms_data, terms_name))
-        typos = st.session_state.get("qa_typos") or typo.check_typos(text)
         rs = report.get("required_status", [])
         # 원고 쪽수(추정) — 잘못된 부분 위치 표시용 (워드 업로드 시)
         pages = (_doc_pages(up.getvalue())
@@ -214,7 +191,9 @@ def render_qa(sheets, claude=None):
             p = manuscript_parser.find_page(pages, s) if pages else None
             return f" · 원고 {p}쪽" if p else ""
 
-        req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv, page_of=pg)
+        _has_img = st.session_state.get("qa_n_images", 0) > 0   # 유료광고 문안이 이미지일 수 있음
+        req_items = req_check.evaluate(title, text, is_official=is_official, rider_result=rv,
+                                       page_of=pg, has_images=_has_img)
     finally:
         _ov2.empty()
 
@@ -233,8 +212,6 @@ def render_qa(sheets, claude=None):
         ({"icon": "🚫", "tone": "red" if gc["banned_hits"] else "green", "label": "표현불가 문구",
           "value": f'{len(gc["banned_hits"])}건', "sub": "가이드 기준 사용"} if gc else
          {"icon": "🚫", "tone": "gray", "label": "표현불가 문구", "value": "–", "sub": "자료실 없음"}),
-        {"icon": "🔤", "tone": "red" if typos else "green", "label": "오탈자",
-         "value": f'{len(typos)}건', "sub": "오타 사전"},
         {"icon": "⛔", "tone": "red" if report["banned_count"] else "green", "label": "금지표현(사전)",
          "value": f'{report["banned_count"]}건', "sub": "기본 사전"},
         {"icon": "📑", "tone": "red" if rv["mismatch_count"] else "green", "label": "특약명",
@@ -256,21 +233,6 @@ def render_qa(sheets, claude=None):
          "value": "발견" if report["price_found"] else "없음", "sub": "금액 탐지"},
     ]
     st.markdown(ui.kpi_cards(cards, per_row=4), unsafe_allow_html=True)
-
-    # --- 오탈자 검수 (as-is → to-be) ---
-    _naver_ok = st.session_state.get("qa_naver_ok")
-    if typos:
-        st.markdown(ui.subhead("🔤", "맞춤법 검사 (오탈자)", "red", stat=f"{len(typos)}건 · 확인 필요"),
-                    unsafe_allow_html=True)
-        st.markdown(ui.typo_detail(typos, page_of=pg), unsafe_allow_html=True)
-        if _naver_ok:
-            st.caption("오타 사전 + 네이버 맞춤법 검사기 기준 · 문맥상 맞는 표현이면 무시하세요")
-        else:
-            st.caption("⚠️ **오타 사전 기준만** 표시 · 네이버 맞춤법 검사기가 이 서버에서 차단돼 미동작 "
-                       "→ 사전에 없는 오타는 못 잡을 수 있어요")
-    elif _naver_ok is False:
-        st.info("🔤 사전 기준 오탈자는 없습니다. 단, **네이버 맞춤법 검사기가 이 서버(클라우드)에서 차단돼** "
-                "임의 오타는 확인하지 못했어요. 정확한 맞춤법 확인이 필요하면 로컬 실행 또는 별도 검사기를 권장합니다.")
 
     # --- 표현불가 문구 전체 대조 ---
     if g and g["banned"]:
@@ -323,4 +285,4 @@ def render_qa(sheets, claude=None):
     _bn = st.session_state.get("qa_blogger_name", "")
     with st.expander(f"✉️ 수정 요청 양식 (심의 전){f' · {_bn}' if _bn else ''}  (클릭해서 펼치기)", expanded=False):
         st.caption("검수에서 발견된 사항을 실행사에 보낼 수정 요청입니다. 복사 버튼으로 복사해 전달하세요.")
-        st.code(_qa_revision(_bn, typos, gc, rv, report, gojib, paid, is_official), language=None)
+        st.code(_qa_revision(_bn, gc, rv, report, gojib, paid, is_official), language=None)

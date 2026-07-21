@@ -84,6 +84,15 @@ def test_link_placeholder_counts_as_ok():
     assert "링크 삽입" in warn["하단 가입 링크"]["detail"]
 
 
+def test_paid_ad_image_case_is_warn():
+    # 유료광고 문안 마커 없음: 이미지 없으면 fail, 이미지 있으면 warn(이미지 삽입 가능성)
+    body = "즐거운 여행 후기입니다. 해외여행보험 좋아요."
+    assert {i["name"]: i for i in req_check.evaluate("t", body)}["유료광고 문안(상단)"]["status"] == "fail"
+    by = {i["name"]: i for i in req_check.evaluate("t", body, has_images=True)}
+    assert by["유료광고 문안(상단)"]["status"] == "warn"
+    assert "이미지" in by["유료광고 문안(상단)"]["detail"]
+
+
 def test_official_blog_paid_ad_na():
     items = req_check.evaluate("해외여행보험", "본문", is_official=True)
     by = {i["name"]: i for i in items}
