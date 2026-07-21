@@ -87,6 +87,14 @@ def test_url_step(refs):
     assert qa_checklist.NAMES[0] == "맞춤법 검사"
 
 
+def test_url_step_link_placeholder_ok(refs):
+    # '링크 삽입' 자리표시 문구가 있으면 URL 없어도 플로우 ⑤ 충족(ok)
+    by = {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", "가입은 아래 링크 삽입 예정", refs)}
+    assert by["가입 링크(URL)"]["status"] == "ok"
+    by2 = {i["name"]: i for i in qa_checklist.evaluate("해외여행보험", "링크 없는 본문", refs)}
+    assert by2["가입 링크(URL)"]["status"] == "warn"
+
+
 def test_spellcheck_flow_step(refs):
     # 오탈자 있으면 맞춤법 검사 = fail + 어느 단어인지 detail에
     items = qa_checklist.evaluate("해외여행보험", "유렵 여행 스케쥴 확인", refs)

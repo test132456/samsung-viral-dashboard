@@ -6,7 +6,7 @@
 """
 from __future__ import annotations
 import re
-from core import qa_rules, typo
+from core import qa_rules, typo, req_check
 
 HEAD_RATIO = 0.20         # 본문 '첫 부분(상단)' 비율
 TAIL_RATIO = 0.25         # 본문 '하단' 비율
@@ -93,6 +93,8 @@ def evaluate(title: str, body: str, refs: dict, is_official: bool = False,
         items.append({"name": "가입 링크(URL)", "status": "ok", "detail": "삼성화재 가입 링크 포함"})
     elif urls:
         items.append({"name": "가입 링크(URL)", "status": "warn", "detail": f"URL {len(urls)}개 · 삼성화재 가입 링크인지 확인"})
+    elif req_check._LINK_PLACEHOLDER.search(body):
+        items.append({"name": "가입 링크(URL)", "status": "ok", "detail": "‘링크 삽입’ 표기 확인 (심의 후 삽입 예정)"})
     else:
         items.append({"name": "가입 링크(URL)", "status": "warn", "detail": "URL 없음 (심의 후 가입 링크 삽입 예정)"})
 
