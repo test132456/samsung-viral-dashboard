@@ -96,6 +96,41 @@ def _naver_candidates(url: str) -> list[str]:
     return [url]
 
 
+_JINA = "https://r.jina.ai/"
+
+
+def _jina_markdown(url: str, timeout: int = 20) -> str | None:
+    """직접 수집이 IP 차단(403)될 때, 프록시(Jina Reader)가 대신 가져온 본문 마크다운.
+    네이버는 본문이 iframe이라, 본문이 인라인으로 있는 모바일/PostView 형태로만 시도. 실패 시 None.
+    ※ 공개 발행글 URL을 외부 서비스에 전달(사용자 승인 하에 폴백으로만 사용)."""
+    import os
+    headers = {"User-Agent": _UA}
+    key = os.environ.get("JINA_API_KEY")   # 있으면 rate-limit·Cloudflare 회피(안정적)
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
+    for u in _naver_candidates(url):
+        if "PostView" not in u and "m.blog" not in u:
+            continue  # PC 원본(iframe)은 Jina가 제목만 가져옴 → 제외
+        try:
+            r = requests.get(_JINA + u, headers=headers, timeout=timeout)
+            r.raise_for_status()
+            if r.text and len(r.text) > 200:
+                return r.text
+        except requests.RequestException:
+            continue
+    return None
+
+
+def _md_to_text(md: str) -> str:
+    """Jina 마크다운 → 발행본 텍스트(이미지·링크 문법·마크다운 기호 제거)."""
+    md = re.sub(r"^Title:.*?Markdown Content:\s*", "", md or "", flags=re.S)  # Jina 헤더 제거
+    md = re.sub(r"!\[[^\]]*\]\([^)]*\)", "", md)        # 이미지
+    md = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", md)    # 링크 → 표시 텍스트
+    md = re.sub(r"^[#>\-*\s]{0,6}", "", md, flags=re.M)  # 줄머리 마크다운 기호
+    md = md.replace("`", "")
+    return re.sub(r"\n{3,}", "\n\n", md).strip()
+
+
 def _fetch_naver_html(url: str, timeout: int = 10) -> str:
     """네이버 발행글 HTML — 여러 URL 형태 + 브라우저 헤더로 재시도해 본문 컨테이너가 있는 HTML 반환.
     모두 막히면(403 등) FetchError(직접 붙여넣기 안내)."""
@@ -180,13 +215,26 @@ def tracking_link_candidates(urls: list[str]) -> list[str]:
 
 
 def fetch_naver_links(url: str, timeout: int = 10) -> list[str]:
-    """네이버 발행글 → 본문 바깥 링크 URL 리스트(네트워크)."""
-    return extract_links(_fetch_naver_html(url, timeout))
+    """네이버 발행글 → 본문 바깥 링크 URL 리스트(네트워크). 직접 막히면 프록시 마크다운에서 추출."""
+    try:
+        return extract_links(_fetch_naver_html(url, timeout))
+    except FetchError:
+        md = _jina_markdown(url)
+        if md:
+            return list(dict.fromkeys(re.findall(r"\((https?://[^)\s]+)\)", md)))
+        raise
 
 
 def fetch_naver_images(url: str, timeout: int = 10) -> list[str]:
-    """네이버 발행글 → 콘텐츠 이미지 URL 리스트(네트워크)."""
-    return extract_image_urls(_fetch_naver_html(url, timeout))
+    """네이버 발행글 → 콘텐츠 이미지 URL 리스트(네트워크). 직접 막히면 프록시 마크다운에서 추출
+    (프록시 경유 시 스티커 자동 제외는 제한적)."""
+    try:
+        return extract_image_urls(_fetch_naver_html(url, timeout))
+    except FetchError:
+        md = _jina_markdown(url)
+        if md:
+            return list(dict.fromkeys(re.findall(r"!\[[^\]]*\]\((https?://[^)\s]+)\)", md)))
+        raise
 
 
 def fetch_image(url: str, timeout: int = 10) -> bytes:
@@ -198,8 +246,17 @@ def fetch_image(url: str, timeout: int = 10) -> bytes:
 
 
 def fetch_naver_text(url: str, timeout: int = 10) -> str:
-    """URL → 본문. PostView(PC)/모바일 등 여러 형태를 브라우저 헤더로 재시도(403 대비)."""
-    text = extract_text(_fetch_naver_html(url, timeout))
-    if not text:
-        raise FetchError("본문을 찾지 못했습니다. 발행본 텍스트를 직접 붙여넣어 주세요.")
-    return text
+    """URL → 본문. 직접 수집(브라우저 헤더+여러 URL) 실패 시 프록시(Jina)로 폴백."""
+    try:
+        text = extract_text(_fetch_naver_html(url, timeout))
+        if text:
+            return text
+    except FetchError:
+        pass
+    # 직접 수집이 IP 차단(403 등)으로 막힘 → 프록시 폴백
+    md = _jina_markdown(url)
+    if md:
+        text = _md_to_text(md)
+        if text:
+            return text
+    raise FetchError("수집 실패 (직접·프록시 모두 실패) — 발행본 텍스트를 직접 붙여넣어 주세요.")

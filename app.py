@@ -4,6 +4,7 @@
 없으면 내장 기준데이터로 시트 없이 단독 동작한다(업로드 기반 검수·비교).
 """
 import streamlit as st
+import os
 from datetime import date
 from core.sheets import Sheets
 from core.claude_client import ClaudeClient
@@ -42,6 +43,14 @@ def get_claude():
         key = None
     return ClaudeClient(key) if key else None
 
+
+# (선택) Jina Reader 키가 시크릿에 있으면 env 로 넘김 — 발행물 수집 프록시 폴백 안정화용
+try:
+    _jina_key = st.secrets.get("JINA_API_KEY")
+    if _jina_key:
+        os.environ["JINA_API_KEY"] = _jina_key
+except Exception:
+    pass
 
 st.markdown(ui.GLOBAL_CSS, unsafe_allow_html=True)
 st.title("삼성화재 해외여행보험 바이럴 운영 대시보드")

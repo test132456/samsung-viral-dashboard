@@ -70,6 +70,19 @@ def test_extract_links_and_candidates():
     assert not any("blog.naver.com" in c for c in cands)  # 내부 링크는 후보 제외
 
 
+def test_md_to_text_cleans_jina_markdown():
+    from core import fetcher
+    md = ("Title: 글제목 : 네이버블로그\nURL Source: https://m.blog.naver.com/x/1\n"
+          "Markdown Content:\n*소정의 광고비(원고료)를 받아 작성.\n"
+          "![Image 1](https://x.pstatic.net/a.jpg)\n### 소제목\n"
+          "보험을 [여기](https://direct.samsungfire.com/x)에서 가입.")
+    txt = fetcher._md_to_text(md)
+    assert "소정의 광고비(원고료)" in txt          # 본문 보존
+    assert "![" not in txt and "](http" not in txt  # 이미지·링크 문법 제거
+    assert "여기에서 가입" in txt                    # 링크는 표시 텍스트로
+    assert "Title:" not in txt and "###" not in txt  # Jina 헤더·마크다운 기호 제거
+
+
 def test_naver_candidates_order():
     from core import fetcher
     cands = fetcher._naver_candidates("https://blog.naver.com/agi45/224353088412")
