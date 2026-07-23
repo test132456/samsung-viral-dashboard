@@ -70,6 +70,16 @@ def test_extract_links_and_candidates():
     assert not any("blog.naver.com" in c for c in cands)  # 내부 링크는 후보 제외
 
 
+def test_naver_candidates_order():
+    from core import fetcher
+    cands = fetcher._naver_candidates("https://blog.naver.com/agi45/224353088412")
+    # PostView(PC) 먼저 → 모바일 → 원본 (403 대비 여러 형태 재시도)
+    assert cands[0] == "https://blog.naver.com/PostView.naver?blogId=agi45&logNo=224353088412"
+    assert any("m.blog.naver.com/agi45/224353088412" in c for c in cands)
+    # 블로그 글 형태가 아니면 원본만
+    assert fetcher._naver_candidates("https://example.com/x") == ["https://example.com/x"]
+
+
 def test_resolve_redirects_shortcircuits_on_utm_term():
     from core import fetcher
     # URL에 이미 utm_term 이 있으면 네트워크 접속 없이 그대로 반환(광고주 서버 타임아웃 회피)

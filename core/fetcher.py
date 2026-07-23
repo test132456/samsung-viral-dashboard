@@ -5,7 +5,15 @@ import requests
 from urllib.parse import urlparse, parse_qsl, urljoin
 from bs4 import BeautifulSoup
 
-_UA = "Mozilla/5.0"
+_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+       "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+# 네이버 블로그 수집용 브라우저 헤더(단순 UA는 403으로 자주 막힘)
+_NAVER_HEADERS = {
+    "User-Agent": _UA,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "ko-KR,ko;q=0.9,en;q=0.8",
+    "Referer": "https://blog.naver.com/",
+}
 # 단축/리다이렉트 링크 도메인 (원본 URL 추적 대상)
 _SHORTENERS = ("tinyurl.com", "bit.ly", "naver.me", "me2.do", "buly.kr",
                "abr.ge", "vo.la", "han.gl", "url.kr", "zrr.kr")
@@ -76,6 +84,37 @@ def _normalize_naver_url(url: str) -> str:
     return url
 
 
+def _naver_candidates(url: str) -> list[str]:
+    """네이버 발행글 수집용 URL 후보(순서대로 시도) — 한쪽이 403이면 다른 형태로 재시도.
+    PostView(PC) → 모바일(m.blog) → 원본."""
+    m = re.search(r"(?:^|//)(?:m\.)?blog\.naver\.com/([^/?]+)/(\d+)", url or "")
+    if m:
+        bid, no = m.group(1), m.group(2)
+        return [f"https://blog.naver.com/PostView.naver?blogId={bid}&logNo={no}",
+                f"https://m.blog.naver.com/{bid}/{no}",
+                url]
+    return [url]
+
+
+def _fetch_naver_html(url: str, timeout: int = 10) -> str:
+    """네이버 발행글 HTML — 여러 URL 형태 + 브라우저 헤더로 재시도해 본문 컨테이너가 있는 HTML 반환.
+    모두 막히면(403 등) FetchError(직접 붙여넣기 안내)."""
+    sess = requests.Session()
+    last_err = None
+    for u in _naver_candidates(url):
+        try:
+            r = sess.get(u, headers=_NAVER_HEADERS, timeout=timeout)
+            r.raise_for_status()
+        except requests.RequestException as e:
+            last_err = e
+            continue
+        if "se-main-container" in r.text or "se-text-paragraph" in r.text or "postViewArea" in r.text:
+            return r.text
+    if last_err:
+        raise FetchError(f"수집 실패: {last_err} — 발행본 텍스트를 직접 붙여넣어 주세요.") from last_err
+    raise FetchError("본문을 찾지 못했습니다. 발행본 텍스트를 직접 붙여넣어 주세요.")
+
+
 _STICKER_HOSTS = ("storep-phinf.pstatic.net", "ogqstore", "sticker")
 
 
@@ -142,24 +181,12 @@ def tracking_link_candidates(urls: list[str]) -> list[str]:
 
 def fetch_naver_links(url: str, timeout: int = 10) -> list[str]:
     """네이버 발행글 → 본문 바깥 링크 URL 리스트(네트워크)."""
-    url = _normalize_naver_url(url)
-    try:
-        resp = requests.get(url, headers={"User-Agent": _UA}, timeout=timeout)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        raise FetchError(f"링크 수집 실패: {e}") from e
-    return extract_links(resp.text)
+    return extract_links(_fetch_naver_html(url, timeout))
 
 
 def fetch_naver_images(url: str, timeout: int = 10) -> list[str]:
     """네이버 발행글 → 콘텐츠 이미지 URL 리스트(네트워크)."""
-    url = _normalize_naver_url(url)
-    try:
-        resp = requests.get(url, headers={"User-Agent": _UA}, timeout=timeout)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        raise FetchError(f"이미지 수집 실패: {e}") from e
-    return extract_image_urls(resp.text)
+    return extract_image_urls(_fetch_naver_html(url, timeout))
 
 
 def fetch_image(url: str, timeout: int = 10) -> bytes:
@@ -171,14 +198,8 @@ def fetch_image(url: str, timeout: int = 10) -> bytes:
 
 
 def fetch_naver_text(url: str, timeout: int = 10) -> str:
-    """URL → 본문. 네이버는 iframe 구조라 mobile(m.blog) URL로 정규화 후 시도."""
-    url = _normalize_naver_url(url)
-    try:
-        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=timeout)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        raise FetchError(f"수집 실패: {e}") from e
-    text = extract_text(resp.text)
+    """URL → 본문. PostView(PC)/모바일 등 여러 형태를 브라우저 헤더로 재시도(403 대비)."""
+    text = extract_text(_fetch_naver_html(url, timeout))
     if not text:
-        raise FetchError("본문을 찾지 못했습니다. 발행본을 직접 붙여넣어 주세요.")
+        raise FetchError("본문을 찾지 못했습니다. 발행본 텍스트를 직접 붙여넣어 주세요.")
     return text
