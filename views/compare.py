@@ -72,9 +72,11 @@ def render_compare(sheets):
             _ov = st.empty()
             _ov.markdown(ui.loading_overlay("네이버 발행글 가져오는 중…"), unsafe_allow_html=True)
             try:
-                published = fetcher.fetch_naver_text(url)
+                post = fetcher.fetch_naver_post(url)
+                published = post["text"]
                 st.session_state["pub_text"] = published
-                st.success("수집 성공")
+                st.session_state["pub_title"] = post.get("title", "")
+                st.success(f"수집 성공 · 발행 제목: 《{post['title']}》" if post.get("title") else "수집 성공")
             except fetcher.FetchError as e:
                 st.error(str(e))
             finally:
@@ -112,6 +114,21 @@ def render_compare(sheets):
         ]), unsafe_allow_html=True)
         st.caption("고지문구=발행본에 고지문구(예금자보호·준법감시인확인필·광고료 표기 등) 유지 · "
                    "특약명=심의본 특약명이 발행본에 유지 · **'이상'=누락/불일치**")
+
+        # 제목 대조 — 원고(심의) 제목 vs 발행 제목
+        _man_title = st.session_state.get("cmp_sel_title", "")
+        _pub_title = st.session_state.get("pub_title", "")
+        if _man_title or _pub_title:
+            _n = lambda s: (s or "").replace(" ", "").strip()
+            _same = bool(_man_title and _pub_title and _n(_man_title) == _n(_pub_title))
+            _tone = "#2bb673" if _same else "#f5a623"
+            st.markdown(
+                f'<div style="border-left:4px solid {_tone};background:#f7f9fc;padding:8px 12px;'
+                f'border-radius:6px;margin:6px 0 10px;font-size:12.5px;font-family:Pretendard,sans-serif">'
+                f'<b>📌 제목 대조</b> · {"일치" if _same else "확인 필요"}<br>'
+                f'<span style="color:#5b6678">📄 원고: {_man_title or "(제목 없음)"}<br>'
+                f'📤 발행: {_pub_title or "(수집 안 됨 — URL 자동수집 시 표시)"}</span></div>',
+                unsafe_allow_html=True)
 
         def _blk(color, bg, body):
             st.markdown(f'<div style="border-left:4px solid {color};background:{bg};padding:9px 13px;'

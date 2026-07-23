@@ -70,6 +70,22 @@ def test_extract_links_and_candidates():
     assert not any("blog.naver.com" in c for c in cands)  # 내부 링크는 후보 제외
 
 
+def test_extract_title():
+    from core import fetcher
+    # 스마트에디터 제목
+    assert fetcher.extract_title('<div class="se-title-text">여행 후기 제목</div>') == "여행 후기 제목"
+    # og:title 폴백
+    assert fetcher.extract_title('<meta property="og:title" content="OG 제목">') == "OG 제목"
+    # <title>에서 ' : 네이버 블로그' 접미 제거
+    assert fetcher.extract_title("<title>글제목 : 네이버 블로그</title>") == "글제목"
+
+
+def test_jina_title_strips_suffix():
+    from core import fetcher
+    assert fetcher._jina_title("Title: 해외여행보험 후기 : 네이버블로그\nURL Source: x") == "해외여행보험 후기"
+    assert fetcher._jina_title("본문만 있음") == ""
+
+
 def test_proxied_url_formats():
     from core import fetcher
     n = "https://m.blog.naver.com/a/1"

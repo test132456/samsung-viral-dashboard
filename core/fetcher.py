@@ -77,6 +77,29 @@ def extract_text(html: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
+def extract_title(html: str) -> str:
+    """네이버 발행글 제목 추출(스마트에디터 제목 → og:title → <title>에서 ' : 네이버 블로그' 제거)."""
+    soup = BeautifulSoup(html or "", "html.parser")
+    for sel in (".se-title-text", ".se_title", ".pcol1 .itemSubjectBoldfont"):
+        el = soup.select_one(sel)
+        if el and el.get_text(" ", strip=True):
+            return el.get_text(" ", strip=True)
+    og = soup.select_one('meta[property="og:title"]')
+    if og and og.get("content"):
+        return og["content"].strip()
+    if soup.title:
+        return re.sub(r"\s*[:：]\s*네이버\s*블로그\s*$", "", soup.title.get_text(strip=True)).strip()
+    return ""
+
+
+def _jina_title(md: str) -> str:
+    """Jina 마크다운 첫 줄 'Title: ...'에서 제목 추출(' : 네이버블로그' 접미 제거)."""
+    m = re.search(r"^Title:\s*(.+?)\s*$", md or "", re.M)
+    if not m:
+        return ""
+    return re.sub(r"\s*[:：]\s*네이버\s*블로그\s*$", "", m.group(1)).strip()
+
+
 def _normalize_naver_url(url: str) -> str:
     """blog.naver.com/<id>/<no> → m.blog.naver.com/<id>/<no>. 그 외는 원본."""
     m = re.search(r"(?:^|//)(?:m\.)?blog\.naver\.com/([^/?]+)/(\d+)", url)
@@ -271,18 +294,23 @@ def fetch_image(url: str, timeout: int = 10) -> bytes:
     return r.content
 
 
-def fetch_naver_text(url: str, timeout: int = 10) -> str:
-    """URL → 본문. 직접 수집(브라우저 헤더+여러 URL) 실패 시 프록시(Jina)로 폴백."""
+def fetch_naver_post(url: str, timeout: int = 10) -> dict:
+    """URL → {'title':제목, 'text':본문}. 직접/프록시(원본 HTML) 우선, 실패 시 Jina(마크다운) 폴백."""
     try:
-        text = extract_text(_fetch_naver_html(url, timeout))
+        html = _fetch_naver_html(url, timeout)
+        text = extract_text(html)
         if text:
-            return text
+            return {"title": extract_title(html), "text": text}
     except FetchError:
         pass
-    # 직접 수집이 IP 차단(403 등)으로 막힘 → 프록시 폴백
     md = _jina_markdown(url)
     if md:
         text = _md_to_text(md)
         if text:
-            return text
+            return {"title": _jina_title(md), "text": text}
     raise FetchError("수집 실패 (직접·프록시 모두 실패) — 발행본 텍스트를 직접 붙여넣어 주세요.")
+
+
+def fetch_naver_text(url: str, timeout: int = 10) -> str:
+    """URL → 본문 텍스트(제목까지 필요하면 fetch_naver_post 사용)."""
+    return fetch_naver_post(url, timeout)["text"]
