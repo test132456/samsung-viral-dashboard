@@ -44,11 +44,14 @@ def get_claude():
     return ClaudeClient(key) if key else None
 
 
-# (선택) Jina Reader 키가 시크릿에 있으면 env 로 넘김 — 발행물 수집 프록시 폴백 안정화용
+# (선택) 발행물 수집 우회 설정 — 시크릿에 있으면 env 로 넘김
+#  · NAVER_PROXY_URL: 본인 프록시(예: Cloudflare Worker) — 원본 HTML 그대로(이미지 포함) 가장 확실
+#  · JINA_API_KEY: Jina Reader 키 — 텍스트 위주, 간편
 try:
-    _jina_key = st.secrets.get("JINA_API_KEY")
-    if _jina_key:
-        os.environ["JINA_API_KEY"] = _jina_key
+    for _k in ("NAVER_PROXY_URL", "JINA_API_KEY"):
+        _v = st.secrets.get(_k)
+        if _v:
+            os.environ[_k] = _v
 except Exception:
     pass
 

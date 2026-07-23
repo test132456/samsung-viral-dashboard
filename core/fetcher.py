@@ -2,7 +2,8 @@
 from __future__ import annotations
 import re
 import requests
-from urllib.parse import urlparse, parse_qsl, urljoin
+import os
+from urllib.parse import urlparse, parse_qsl, urljoin, quote
 from bs4 import BeautifulSoup
 
 _UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -103,7 +104,6 @@ def _jina_markdown(url: str, timeout: int = 20) -> str | None:
     """직접 수집이 IP 차단(403)될 때, 프록시(Jina Reader)가 대신 가져온 본문 마크다운.
     네이버는 본문이 iframe이라, 본문이 인라인으로 있는 모바일/PostView 형태로만 시도. 실패 시 None.
     ※ 공개 발행글 URL을 외부 서비스에 전달(사용자 승인 하에 폴백으로만 사용)."""
-    import os
     headers = {"User-Agent": _UA}
     key = os.environ.get("JINA_API_KEY")   # 있으면 rate-limit·Cloudflare 회피(안정적)
     if key:
@@ -131,20 +131,46 @@ def _md_to_text(md: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", md).strip()
 
 
+def _has_naver_body(html_text: str) -> bool:
+    return bool(html_text) and any(
+        m in html_text for m in ("se-main-container", "se-text-paragraph", "postViewArea"))
+
+
+def _proxied(proxy: str, target: str) -> str:
+    """사용자 프록시 URL 형태 대응: '...?url=' / '...=' 로 끝나면 뒤에 붙이고, 아니면 ?url= 추가."""
+    if proxy.endswith("=") or proxy.endswith("/"):
+        return proxy + quote(target, safe="")
+    sep = "&" if "?" in proxy else "?"
+    return f"{proxy}{sep}url={quote(target, safe='')}"
+
+
 def _fetch_naver_html(url: str, timeout: int = 10) -> str:
-    """네이버 발행글 HTML — 여러 URL 형태 + 브라우저 헤더로 재시도해 본문 컨테이너가 있는 HTML 반환.
-    모두 막히면(403 등) FetchError(직접 붙여넣기 안내)."""
+    """네이버 발행글 원본 HTML 반환(본문 컨테이너 확인). 순서:
+    ①직접(브라우저 헤더·여러 URL) → ②사용자 프록시(NAVER_PROXY_URL, 예: Cloudflare Worker).
+    프록시는 원본 HTML을 그대로 돌려주므로 텍스트·링크·이미지(스티커 제외 포함) 모두 정상 처리.
+    모두 막히면 FetchError(직접 붙여넣기 안내)."""
     sess = requests.Session()
     last_err = None
+    proxy = os.environ.get("NAVER_PROXY_URL", "").strip()
+    # ① 직접
     for u in _naver_candidates(url):
         try:
             r = sess.get(u, headers=_NAVER_HEADERS, timeout=timeout)
             r.raise_for_status()
+            if _has_naver_body(r.text):
+                return r.text
         except requests.RequestException as e:
             last_err = e
-            continue
-        if "se-main-container" in r.text or "se-text-paragraph" in r.text or "postViewArea" in r.text:
-            return r.text
+    # ② 사용자 프록시(네이버가 안 막는 IP) 경유 — 원본 HTML 우회
+    if proxy:
+        for u in _naver_candidates(url):
+            try:
+                r = sess.get(_proxied(proxy, u), headers={"User-Agent": _UA}, timeout=timeout + 10)
+                r.raise_for_status()
+                if _has_naver_body(r.text):
+                    return r.text
+            except requests.RequestException as e:
+                last_err = e
     if last_err:
         raise FetchError(f"수집 실패: {last_err} — 발행본 텍스트를 직접 붙여넣어 주세요.") from last_err
     raise FetchError("본문을 찾지 못했습니다. 발행본 텍스트를 직접 붙여넣어 주세요.")

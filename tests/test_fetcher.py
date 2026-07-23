@@ -70,6 +70,15 @@ def test_extract_links_and_candidates():
     assert not any("blog.naver.com" in c for c in cands)  # 내부 링크는 후보 제외
 
 
+def test_proxied_url_formats():
+    from core import fetcher
+    n = "https://m.blog.naver.com/a/1"
+    assert fetcher._proxied("https://w.workers.dev/?url=", n).startswith("https://w.workers.dev/?url=https%3A")
+    assert fetcher._proxied("https://w.workers.dev/", n) == "https://w.workers.dev/https%3A%2F%2Fm.blog.naver.com%2Fa%2F1"
+    assert "?url=" in fetcher._proxied("https://w.workers.dev/proxy", n)
+    assert "&url=" in fetcher._proxied("https://w.workers.dev/?x=1", n)
+
+
 def test_md_to_text_cleans_jina_markdown():
     from core import fetcher
     md = ("Title: 글제목 : 네이버블로그\nURL Source: https://m.blog.naver.com/x/1\n"
